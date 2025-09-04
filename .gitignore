@@ -1,0 +1,9 @@
+# editor and OS files
+.zed
+.vscode
+.idea
+.DS_Store
+*.log
+
+# Binaries
+/bin
