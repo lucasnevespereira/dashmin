@@ -29,12 +29,13 @@ var (
 		Foreground(textColor).
 		Background(primaryColor).
 		Padding(0, 2).
-		MarginBottom(1)
+		MarginBottom(2)
 
 	headerStyle = lipgloss.NewStyle().
 		Bold(true).
 		Foreground(primaryColor).
-		MarginBottom(1)
+		MarginBottom(1).
+		MarginTop(1)
 
 	appStyle = lipgloss.NewStyle().
 		Bold(true).
@@ -62,7 +63,8 @@ var (
 	tableStyle = lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(primaryColor).
-		MarginBottom(1)
+		MarginBottom(1).
+		MarginTop(1)
 
 	detailBoxStyle = lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
@@ -217,9 +219,13 @@ func (m *DashboardModel) updateTable() {
 		var status string
 
 		if result.Result.Error != nil {
-			// Truncate error for table display
+			// Show more meaningful error messages in table
 			errStr := result.Result.Error.Error()
-			if len(errStr) > 20 {
+			if strings.Contains(errStr, "connect") || strings.Contains(errStr, "ping") {
+				value = "Connection Failed"
+			} else if strings.Contains(errStr, "authentication") || strings.Contains(errStr, "password") {
+				value = "Auth Failed"
+			} else if len(errStr) > 20 {
 				value = errStr[:17] + "..."
 			} else {
 				value = errStr
@@ -264,8 +270,8 @@ func (m *DashboardModel) View() string {
 	var b strings.Builder
 
 	// Header
-	b.WriteString(titleStyle.Render("📊 DASHMIN"))
-	b.WriteString("\n\n")
+	b.WriteString(titleStyle.Render("DASHMIN DASHBOARD"))
+	b.WriteString("\n")
 
 	// Status indicator
 	if m.loading {
@@ -279,14 +285,13 @@ func (m *DashboardModel) View() string {
 			m.lastRefresh.Format("15:04:05"))
 		b.WriteString(headerStyle.Render(statusText))
 	}
-	b.WriteString("\n\n")
+	b.WriteString("\n")
 
 	// Main table
 	if len(m.results) == 0 && !m.loading {
 		b.WriteString(m.renderEmptyState())
 	} else {
 		b.WriteString(tableStyle.Render(m.table.View()))
-		b.WriteString("\n")
 		
 		// Detail view
 		if len(m.results) > 0 {
@@ -328,10 +333,10 @@ func (m *DashboardModel) renderDetailView() string {
 	result := m.results[selected]
 	var b strings.Builder
 
-	// App and query info
-	b.WriteString(fmt.Sprintf("%s %s\n", 
-		appStyle.Render(result.AppName),
-		queryStyle.Render(result.QueryLabel)))
+	// App and query info with better spacing
+	b.WriteString(fmt.Sprintf("%s %s\n\n", 
+		appStyle.Render("📱 "+result.AppName),
+		queryStyle.Render("🔍 "+result.QueryLabel)))
 
 	if result.Result.Error != nil {
 		// Show full error message with word wrapping
@@ -375,27 +380,27 @@ func (m *DashboardModel) renderDetailView() string {
 			b.WriteString("• Ensure credentials are correct\n")
 		}
 	} else {
-		// Results table
+		// Results table with better formatting
 		if len(result.Result.Columns) > 0 && len(result.Result.Rows) > 0 {
-			b.WriteString("\n📋 Results:\n")
+			b.WriteString("📋 Results:\n\n")
 			
 			// Headers
+			headerLine := ""
 			for _, col := range result.Result.Columns {
-				b.WriteString(fmt.Sprintf("%-15s", col))
+				headerLine += fmt.Sprintf("%-20s", col)
 			}
-			b.WriteString("\n")
-			b.WriteString(strings.Repeat("─", len(result.Result.Columns)*15))
-			b.WriteString("\n")
+			b.WriteString(headerLine + "\n")
+			b.WriteString(strings.Repeat("─", len(headerLine)) + "\n")
 
 			// Data (show up to 5 rows)
 			maxRows := 5
 			for i, row := range result.Result.Rows {
 				if i >= maxRows {
-					b.WriteString(fmt.Sprintf("... and %d more rows", len(result.Result.Rows)-maxRows))
+					b.WriteString(fmt.Sprintf("... and %d more rows\n", len(result.Result.Rows)-maxRows))
 					break
 				}
 				for _, val := range row {
-					b.WriteString(fmt.Sprintf("%-15v", val))
+					b.WriteString(fmt.Sprintf("%-20v", val))
 				}
 				b.WriteString("\n")
 			}
