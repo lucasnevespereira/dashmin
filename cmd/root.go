@@ -20,7 +20,7 @@ Examples:
   dashmin all`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Show help by default
-		cmd.Help()
+		_ = cmd.Help()
 	},
 }
 

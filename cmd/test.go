@@ -58,7 +58,7 @@ var testCmd = &cobra.Command{
 			fmt.Printf("• Check firewall settings\n")
 			return
 		}
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 
 		fmt.Printf("✅ Connection successful!\n\n")
 		

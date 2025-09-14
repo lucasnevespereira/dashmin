@@ -98,7 +98,7 @@ func (m *DashboardModel) refreshData() tea.Cmd {
 				})
 				continue
 			}
-			defer conn.Close()
+			defer func() { _ = conn.Close() }()
 
 			// Execute queries
 			for label, query := range app.Queries {

@@ -35,7 +35,7 @@ func (c *SQLConnection) Query(query string) (*Result, error) {
 	if err != nil {
 		return &Result{Error: err}, nil
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	columns, err := rows.Columns()
 	if err != nil {

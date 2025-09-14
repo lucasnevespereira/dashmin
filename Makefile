@@ -1,40 +1,24 @@
-.PHONY: build install clean run setup test
+.PHONY: help build run lint clean
 
-# Build the binary
+APP_NAME = dashmin
+
+help:
+	@echo "📊 $(APP_NAME) development commands"
+	@echo ""
+	@echo "  build      - Build binary to bin/$(APP_NAME)"
+	@echo "  run        - Run $(APP_NAME) locally"
+	@echo "  lint       - Run code quality checks"
+	@echo "  clean      - Remove build artifacts"
+	@echo ""
+
 build:
-	go build -o bin/dashmin main.go
+	go build -o bin/$(APP_NAME) .
 
-# Install to GOPATH/bin
-install:
-	go install .
-
-# Clean build artifacts
-clean:
-	rm -rf bin/
-
-# Run the dashboard
 run:
-	go run main.go
+	go run .
 
-# Run setup
-setup:
-	go run main.go setup
-
-# Run tests
-test:
-	go test -v ./...
-
-# Format code
-fmt:
-	go fmt ./...
-
-# Run linter
 lint:
 	golangci-lint run
 
-# Build for multiple platforms
-build-all:
-	GOOS=linux GOARCH=amd64 go build -o bin/dashmin-linux-amd64 main.go
-	GOOS=darwin GOARCH=amd64 go build -o bin/dashmin-darwin-amd64 main.go
-	GOOS=darwin GOARCH=arm64 go build -o bin/dashmin-darwin-arm64 main.go
-	GOOS=windows GOARCH=amd64 go build -o bin/dashmin-windows-amd64.exe main.go
+clean:
+	rm -rf bin/
