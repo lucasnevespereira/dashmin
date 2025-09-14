@@ -4,22 +4,21 @@ set -e
 
 # Usage function
 usage() {
-    echo "Usage: ./release.sh <patch|minor|major> [--retry]"
+    echo "Usage: ./release.sh <version> [--retry]"
     echo ""
     echo "Examples:"
-    echo "  ./release.sh patch        # 0.1.0 -> 0.1.1"
-    echo "  ./release.sh minor        # 0.1.0 -> 0.2.0"
-    echo "  ./release.sh major        # 0.1.0 -> 1.0.0"
-    echo "  ./release.sh patch --retry # Retry failed release"
+    echo "  ./release.sh 0.1.2        # Release version 0.1.2"
+    echo "  ./release.sh 1.0.0        # Release version 1.0.0"
+    echo "  ./release.sh 0.1.2 --retry # Retry failed release"
     exit 1
 }
 
-# Check if type is provided
+# Check if version is provided
 if [ $# -eq 0 ]; then
     usage
 fi
 
-TYPE=$1
+NEW_VERSION=$1
 RETRY=false
 
 # Parse arguments
@@ -34,40 +33,14 @@ for arg in "$@"; do
     esac
 done
 
-# Validate type
-if [[ ! "$TYPE" =~ ^(patch|minor|major)$ ]]; then
-    echo "❌ Invalid release type: $TYPE"
+# Validate version format (basic semver check)
+if [[ ! "$NEW_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "❌ Invalid version format: $NEW_VERSION"
+    echo "Please use semantic versioning format: MAJOR.MINOR.PATCH (e.g., 1.0.0)"
     usage
 fi
 
-# Get current version from cmd/version.go
-CURRENT_VERSION=$(grep 'const Version' cmd/version.go | sed 's/.*"\(.*\)".*/\1/')
-
-if [ -z "$CURRENT_VERSION" ]; then
-    echo "❌ Could not find current version in version.go"
-    exit 1
-fi
-
-# Calculate new version
-IFS='.' read -r -a VERSION_PARTS <<< "$CURRENT_VERSION"
-MAJOR=${VERSION_PARTS[0]}
-MINOR=${VERSION_PARTS[1]}
-PATCH=${VERSION_PARTS[2]}
-
-case $TYPE in
-    major)
-        NEW_VERSION="$((MAJOR + 1)).0.0"
-        ;;
-    minor)
-        NEW_VERSION="$MAJOR.$((MINOR + 1)).0"
-        ;;
-    patch)
-        NEW_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
-        ;;
-esac
-
-echo "Current version: $CURRENT_VERSION"
-echo "New version: $NEW_VERSION"
+echo "Releasing version: $NEW_VERSION"
 echo ""
 
 # Check git status
@@ -102,5 +75,5 @@ git push origin "v$NEW_VERSION"
 
 echo "✅ Tag pushed successfully!"
 echo ""
-echo "🚀 GitHub Actions will now create the release and update version.go"
+echo "🚀 GitHub Actions will now create the release with proper versioning"
 echo "📦 Check the release at: https://github.com/lucasnevespereira/dashmin/releases/tag/v$NEW_VERSION"
