@@ -21,10 +21,11 @@ jobs:
 
     - name: Build
       run: |
-        GOOS=linux GOARCH=amd64 go build -o dashmin-linux-amd64 .
-        GOOS=darwin GOARCH=amd64 go build -o dashmin-darwin-amd64 .
-        GOOS=darwin GOARCH=arm64 go build -o dashmin-darwin-arm64 .
-        GOOS=windows GOARCH=amd64 go build -o dashmin-windows-amd64.exe .
+        VERSION=${GITHUB_REF#refs/tags/v}
+        GOOS=linux GOARCH=amd64 go build -ldflags "-X cmd.Version=$VERSION" -o dashmin-linux-amd64 .
+        GOOS=darwin GOARCH=amd64 go build -ldflags "-X cmd.Version=$VERSION" -o dashmin-darwin-amd64 .
+        GOOS=darwin GOARCH=arm64 go build -ldflags "-X cmd.Version=$VERSION" -o dashmin-darwin-arm64 .
+        GOOS=windows GOARCH=amd64 go build -ldflags "-X cmd.Version=$VERSION" -o dashmin-windows-amd64.exe .
 
     - name: Create Release
       uses: softprops/action-gh-release@v1
@@ -35,16 +36,3 @@ jobs:
           dashmin-darwin-arm64
           dashmin-windows-amd64.exe
         generate_release_notes: true
-
-    - name: Update version in code
-      run: |
-        VERSION=${GITHUB_REF#refs/tags/v}
-        sed -i "s/const Version = \".*\"/const Version = \"$VERSION\"/" cmd/version.go
-
-    - name: Commit version update
-      run: |
-        git config --local user.email "pereiraneveslucas@gmail.com"
-        git config --local user.name "lucasnevespereira"
-        git add cmd/version.go
-        git commit -m "chore: update version to ${GITHUB_REF#refs/tags/v}" || exit 0
-        git push origin HEAD:main
