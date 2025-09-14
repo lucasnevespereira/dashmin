@@ -47,4 +47,4 @@ jobs:
         git config --local user.name "lucasnevespereira"
         git add cmd/version.go
         git commit -m "chore: update version to ${GITHUB_REF#refs/tags/v}" || exit 0
-        git push
+        git push origin HEAD:main
