@@ -12,13 +12,20 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "dashmin",
 	Short: "Minimal dashboard for your apps",
-	Long: `A lightweight CLI tool to monitor multiple databases and applications from one place.
-Built for developers who want quick insights without the overhead.
+	Long: `Minimal dashboard for monitoring your apps from the terminal.
 
-Examples:
-  dashmin add myapp postgres "postgres://readonly:password@localhost:5432/myapp?sslmode=disable"
-  dashmin query myapp users "SELECT COUNT(*) FROM users"
-  dashmin all`,
+Quick start:
+  dashmin add myapp postgres "postgres://user:pass@host/db"
+  dashmin query myapp total_users "SELECT COUNT(*) FROM users"
+  dashmin all
+
+Commands:
+  all              Show dashboard for all apps
+  see <app>        Show dashboard for specific app
+  add <app>        Add new app to monitor
+  query <app>      Add query to track
+  list             Show configuration
+  test <app>       Test database connection`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Show help by default
 		cmd.Help()

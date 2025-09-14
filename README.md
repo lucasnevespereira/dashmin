@@ -1,8 +1,8 @@
 # dashmin
 
-**Minimal dashboard for your apps**
+**Minimal dashboard for monitoring your apps from the terminal**
 
-A lightweight CLI tool to monitor multiple databases and applications from one place. Built for developers who want quick insights without the overhead.
+Quick insights without the bloat. Monitor your databases with simple queries - no complex setup, no heavy interfaces.
 
 ## Features
 
@@ -30,63 +30,69 @@ go build -o dashmin main.go
 
 ### 1. Add your first app
 ```bash
-dashmin add blogbuddy postgres "postgres://readonly:password@localhost:5432/blogbuddy_prod?sslmode=disable"
+dashmin add myapp postgres "postgres://readonly:password@localhost:5432/myapp_prod?sslmode=disable"
 ```
 
-### 2. Add custom queries
+### 2. Add metrics you want to track
 ```bash
-dashmin query blogbuddy users "SELECT COUNT(*) FROM users"
-dashmin query blogbuddy posts "SELECT COUNT(*) FROM posts WHERE created_at > NOW() - INTERVAL '30 days'"
+dashmin query myapp total_users "SELECT COUNT(*) FROM users"
+dashmin query myapp signups_today "SELECT COUNT(*) FROM users WHERE created_at >= CURRENT_DATE"
+dashmin query myapp revenue_today "SELECT SUM(amount) FROM orders WHERE created_at >= CURRENT_DATE"
 ```
 
-### 3. View dashboard
+### 3. View your dashboard
 ```bash
-dashmin status
+dashmin all          # See all apps
+dashmin see myapp    # See specific app
 ```
 
 ## Usage
 
-### Managing Apps
+### Commands
+
 ```bash
-# Add an app
+# Setup
 dashmin add <name> <type> <connection-string>
-dashmin add myapp postgres "postgres://readonly:password@db.example.com:5432/myapp?sslmode=disable"
-dashmin add webapp mysql "user:pass@tcp(localhost:3306)/webapp"
-dashmin add analytics mongodb "mongodb://user:pass@localhost:27017/analytics"
-
-# List apps
-dashmin list
-
-# Test database connection
-dashmin test <app>
-
-# Remove an app
-dashmin remove <name>
-```
-
-### Managing Queries
-```bash
-# Add custom queries
 dashmin query <app> <label> <query>
-dashmin query myapp total_users "SELECT COUNT(*) FROM users"
-dashmin query myapp revenue "SELECT SUM(amount) FROM payments WHERE DATE(created_at) = CURDATE()"
 
-# MongoDB examples
-dashmin query analytics users "users.count({})"
-dashmin query analytics active_users "users.count({\"status\": \"active\"})"
+# View dashboards
+dashmin all          # All apps overview
+dashmin see <app>    # Single app focus
+
+# Management
+dashmin list         # Show configuration
+dashmin test <app>   # Test connection
+dashmin remove <app> # Remove app
 ```
 
-### Viewing Data
+### Common Queries
+
+**User metrics:**
 ```bash
-# Interactive dashboard
-dashmin status
+dashmin query myapp total_users "SELECT COUNT(*) FROM users"
+dashmin query myapp active_users "SELECT COUNT(*) FROM users WHERE last_login > NOW() - INTERVAL '30 days'"
+dashmin query myapp signups_today "SELECT COUNT(*) FROM users WHERE created_at >= CURRENT_DATE"
+```
 
-# List configuration
-dashmin list
-dashmin config
+**Business metrics:**
+```bash
+dashmin query myapp orders_today "SELECT COUNT(*) FROM orders WHERE created_at >= CURRENT_DATE"
+dashmin query myapp revenue_today "SELECT SUM(amount) FROM orders WHERE created_at >= CURRENT_DATE"
+dashmin query myapp avg_order_value "SELECT ROUND(AVG(amount), 2) FROM orders"
+```
 
-# Debug connection issues
-dashmin test <app>
+**System health:**
+```bash
+dashmin query myapp active_sessions "SELECT COUNT(*) FROM sessions WHERE expires_at > NOW()"
+dashmin query myapp errors_today "SELECT COUNT(*) FROM logs WHERE level = 'error' AND created_at >= CURRENT_DATE"
+dashmin query myapp database_size "SELECT pg_size_pretty(pg_database_size(current_database()))"
+```
+
+**MongoDB examples:**
+```bash
+dashmin query webapp total_users "users.count({})"
+dashmin query webapp active_users "users.count({\"status\": \"active\"})"
+dashmin query webapp events_today "events.count({\"date\": {\"$gte\": \"2024-01-01\"}})"
 ```
 
 ## Configuration
@@ -95,29 +101,14 @@ Config is stored at `~/.config/dashmin/config.yaml`:
 
 ```yaml
 apps:
-  blogbuddy:
-    name: blogbuddy
+  <app>:
+    name: <app>
     type: postgres
-    connection: "postgres://readonly:password@localhost:5432/blogbuddy_prod?sslmode=disable"
+    connection: "postgres://readonly:password@localhost:5432/<database>?sslmode=disable"
     queries:
-      users: "SELECT COUNT(*) FROM users"
-      posts: "SELECT COUNT(*) FROM posts WHERE created_at > NOW() - INTERVAL '30 days'"
-  
-  webapp:
-    name: webapp
-    type: mysql
-    connection: "user:pass@tcp(localhost:3306)/webapp"
-    queries:
-      users: "SELECT COUNT(*) FROM users"
-      revenue: "SELECT SUM(amount) FROM payments WHERE DATE(created_at) = CURDATE()"
-
-  analytics:
-    name: analytics
-    type: mongodb
-    connection: "mongodb://user:pass@localhost:27017/analytics"
-    queries:
-      users: "users.count({})"
-      active: "users.count({\"status\": \"active\"})"
+      total_users: "SELECT COUNT(*) FROM users"
+      signups_today: "SELECT COUNT(*) FROM users WHERE created_at >= CURRENT_DATE"
+      revenue_today: "SELECT SUM(amount) FROM orders WHERE created_at >= CURRENT_DATE"
 ```
 
 ## Database Support
