@@ -43,6 +43,16 @@ fi
 echo "Releasing version: $NEW_VERSION"
 echo ""
 
+# Update version in code
+echo "📝 Updating version in cmd/version.go..."
+sed -i.bak "s/var Version = \".*\"/var Version = \"$NEW_VERSION\"/" cmd/version.go
+rm cmd/version.go.bak
+
+# Commit version update
+echo "💾 Committing version update..."
+git add cmd/version.go
+git commit -m "chore: bump version to $NEW_VERSION"
+
 # Check git status
 echo "🔍 Checking git status..."
 if [ -n "$(git status --porcelain)" ]; then
