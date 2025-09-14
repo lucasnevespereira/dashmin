@@ -43,8 +43,8 @@ jobs:
 
     - name: Commit version update
       run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
+        git config --local user.email "pereiraneveslucas@gmail.com"
+        git config --local user.name "lucasnevespereira"
         git add cmd/version.go
         git commit -m "chore: update version to ${GITHUB_REF#refs/tags/v}" || exit 0
         git push
