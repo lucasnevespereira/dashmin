@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.24.6'
+
+    - name: Build
+      run: |
+        GOOS=linux GOARCH=amd64 go build -o dashmin-linux-amd64 .
+        GOOS=darwin GOARCH=amd64 go build -o dashmin-darwin-amd64 .
+        GOOS=darwin GOARCH=arm64 go build -o dashmin-darwin-arm64 .
+        GOOS=windows GOARCH=amd64 go build -o dashmin-windows-amd64.exe .
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          dashmin-linux-amd64
+          dashmin-darwin-amd64
+          dashmin-darwin-arm64
+          dashmin-windows-amd64.exe
+        generate_release_notes: true
+
+    - name: Update version in code
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        sed -i "s/const Version = \".*\"/const Version = \"$VERSION\"/" cmd/version.go
+
+    - name: Commit version update
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add cmd/version.go
+        git commit -m "chore: update version to ${GITHUB_REF#refs/tags/v}" || exit 0
+        git push

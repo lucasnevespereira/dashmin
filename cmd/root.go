@@ -12,20 +12,12 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "dashmin",
 	Short: "Minimal dashboard for your apps",
-	Long: `Minimal dashboard for monitoring your apps from the terminal.
+	Long: `Monitor your apps from the terminal.
 
-Quick start:
+Examples:
   dashmin add myapp postgres "postgres://user:pass@host/db"
-  dashmin query myapp total_users "SELECT COUNT(*) FROM users"
-  dashmin all
-
-Commands:
-  all              Show dashboard for all apps
-  see <app>        Show dashboard for specific app
-  add <app>        Add new app to monitor
-  query <app>      Add query to track
-  list             Show configuration
-  test <app>       Test database connection`,
+  dashmin query myapp users "SELECT COUNT(*) FROM users"
+  dashmin all`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Show help by default
 		cmd.Help()

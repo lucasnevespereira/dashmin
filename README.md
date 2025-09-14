@@ -2,7 +2,7 @@
 
 **Minimal dashboard for monitoring your apps from the terminal**
 
-Quick insights without the bloat. Monitor your databases with simple queries - no complex setup, no heavy interfaces.
+Monitor your databases with simple queries, no complex setup and no heavy interface.
 
 ## Features
 
@@ -132,6 +132,13 @@ go mod tidy
 go run main.go all
 ```
 
+## Contributing
+
+1. Fork the repo
+2. Create a feature branch: `git checkout -b my-feature`
+3. Make your changes
+4. Test: `go build .`
+5. Submit a pull request
 
 ## License
 
