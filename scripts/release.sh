@@ -43,9 +43,16 @@ fi
 echo "Releasing version: $NEW_VERSION"
 echo ""
 
+# Check git status first
+echo "🔍 Checking git status..."
+if [ -n "$(git status --porcelain)" ]; then
+    echo "❌ Git working directory is not clean. Please commit or stash your changes."
+    exit 1
+fi
+
 # Update version in code
 echo "📝 Updating version in cmd/version.go..."
-sed -i.bak "s/var Version = \".*\"/var Version = \"$NEW_VERSION\"/" cmd/version.go
+sed -i.bak "s/const Version = \".*\"/const Version = \"$NEW_VERSION\"/" cmd/version.go
 rm cmd/version.go.bak
 
 # Commit version update
@@ -53,12 +60,9 @@ echo "💾 Committing version update..."
 git add cmd/version.go
 git commit -m "chore: bump version to $NEW_VERSION"
 
-# Check git status
-echo "🔍 Checking git status..."
-if [ -n "$(git status --porcelain)" ]; then
-    echo "❌ Git working directory is not clean. Please commit or stash your changes."
-    exit 1
-fi
+# Push the version commit to main
+echo "📤 Pushing version commit to main..."
+git push origin main
 
 # Handle existing tags
 if git tag -l | grep -q "^v$NEW_VERSION$"; then
