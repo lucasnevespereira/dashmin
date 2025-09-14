@@ -18,16 +18,16 @@ Built for developers who want quick insights without the overhead.
 Examples:
   dashmin add myapp postgres "postgres://readonly:password@localhost:5432/myapp?sslmode=disable"
   dashmin query myapp users "SELECT COUNT(*) FROM users"
-  dashmin status`,
+  dashmin all`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Show help by default
 		cmd.Help()
 	},
 }
 
-var statusCmd = &cobra.Command{
-	Use:   "status",
-	Short: "Show interactive dashboard",
+var allCmd = &cobra.Command{
+	Use:   "all",
+	Short: "Show dashboard for all apps",
 	Long:  "Display the real-time dashboard with all your apps and metrics.",
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg, err := config.Load()
@@ -41,12 +41,42 @@ var statusCmd = &cobra.Command{
 			fmt.Println("\nQuick start:")
 			fmt.Println("  dashmin add myapp postgres \"postgres://readonly:password@localhost:5432/myapp?sslmode=disable\"")
 			fmt.Println("  dashmin query myapp users \"SELECT COUNT(*) FROM users\"")
-			fmt.Println("  dashmin status")
+			fmt.Println("  dashmin all")
 			return
 		}
 
 		// Launch TUI dashboard
-		if err := ui.RunDashboard(cfg); err != nil {
+		if err := ui.RunDashboard(cfg, ""); err != nil {
+			fmt.Printf("Error running dashboard: %v\n", err)
+			os.Exit(1)
+		}
+	},
+}
+
+var seeCmd = &cobra.Command{
+	Use:   "see [app]",
+	Short: "Show dashboard for a specific app",
+	Long:  "Display the real-time dashboard for a single app and its metrics.",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg, err := config.Load()
+		if err != nil {
+			fmt.Printf("Error loading config: %v\n", err)
+			os.Exit(1)
+		}
+
+		appName := args[0]
+		if _, exists := cfg.Apps[appName]; !exists {
+			fmt.Printf("App '%s' not found.\n", appName)
+			fmt.Println("\nAvailable apps:")
+			for name := range cfg.Apps {
+				fmt.Printf("  %s\n", name)
+			}
+			return
+		}
+
+		// Launch TUI dashboard for specific app
+		if err := ui.RunDashboard(cfg, appName); err != nil {
 			fmt.Printf("Error running dashboard: %v\n", err)
 			os.Exit(1)
 		}
@@ -61,7 +91,8 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.AddCommand(statusCmd)
+	rootCmd.AddCommand(allCmd)
+	rootCmd.AddCommand(seeCmd)
 	rootCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(queryCmd)
 	rootCmd.AddCommand(listCmd)

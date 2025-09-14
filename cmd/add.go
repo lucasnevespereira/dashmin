@@ -68,6 +68,6 @@ Examples:
 		fmt.Printf("✅ Added app '%s' (%s)\n", name, dbType)
 		fmt.Printf("\nNext steps:\n")
 		fmt.Printf("  • Add custom queries: dashmin query %s <label> \"<sql>\"\n", name)
-		fmt.Printf("  • View dashboard: dashmin status\n")
+		fmt.Printf("  • View dashboard: dashmin all\n")
 	},
 }

@@ -87,9 +87,10 @@ type DashboardModel struct {
 	loading     bool
 	lastRefresh time.Time
 	error       error
+	filterApp   string
 }
 
-func NewDashboard(cfg *config.Config) *DashboardModel {
+func NewDashboard(cfg *config.Config, filterApp string) *DashboardModel {
 	columns := []table.Column{
 		{Title: "App", Width: 18},
 		{Title: "Query", Width: 25},
@@ -111,7 +112,7 @@ func NewDashboard(cfg *config.Config) *DashboardModel {
 		BorderBottom(true).
 		Bold(true).
 		Foreground(primaryColor)
-	
+
 	s.Selected = s.Selected.
 		Foreground(textColor).
 		Background(primaryColor).
@@ -123,8 +124,10 @@ func NewDashboard(cfg *config.Config) *DashboardModel {
 	t.SetStyles(s)
 
 	return &DashboardModel{
-		config: cfg,
-		table:  t,
+		config:    cfg,
+		table:     t,
+		filterApp: filterApp,
+		loading:   true,
 	}
 }
 
@@ -165,6 +168,11 @@ func (m *DashboardModel) refreshData() tea.Cmd {
 		var results []QueryResult
 
 		for appName, app := range m.config.Apps {
+			// Skip apps not matching filter
+			if m.filterApp != "" && appName != m.filterApp {
+				continue
+			}
+
 			// Connect to database
 			conn, err := ConnectDatabase(app)
 			if err != nil {
@@ -270,7 +278,11 @@ func (m *DashboardModel) View() string {
 	var b strings.Builder
 
 	// Header
-	b.WriteString(titleStyle.Render("DASHMIN DASHBOARD"))
+	title := "DASHMIN DASHBOARD"
+	if m.filterApp != "" {
+		title = fmt.Sprintf("DASHMIN - %s", strings.ToUpper(m.filterApp))
+	}
+	b.WriteString(titleStyle.Render(title))
 	b.WriteString("\n")
 
 	// Status indicator
@@ -279,10 +291,17 @@ func (m *DashboardModel) View() string {
 	} else if m.error != nil {
 		b.WriteString(errorStyle.Render(fmt.Sprintf("❌ Error: %v", m.error)))
 	} else {
-		statusText := fmt.Sprintf("✅ %d apps • %d queries • Updated %s", 
-			len(m.config.Apps), 
-			len(m.results), 
-			m.lastRefresh.Format("15:04:05"))
+		var statusText string
+		if m.filterApp != "" {
+			statusText = fmt.Sprintf("✅ %d queries • Updated %s",
+				len(m.results),
+				m.lastRefresh.Format("15:04:05"))
+		} else {
+			statusText = fmt.Sprintf("✅ %d apps • %d queries • Updated %s",
+				len(m.config.Apps),
+				len(m.results),
+				m.lastRefresh.Format("15:04:05"))
+		}
 		b.WriteString(headerStyle.Render(statusText))
 	}
 	b.WriteString("\n")
@@ -292,7 +311,7 @@ func (m *DashboardModel) View() string {
 		b.WriteString(m.renderEmptyState())
 	} else {
 		b.WriteString(tableStyle.Render(m.table.View()))
-		
+
 		// Detail view
 		if len(m.results) > 0 {
 			b.WriteString(m.renderDetailView())
@@ -318,7 +337,7 @@ func (m *DashboardModel) renderEmptyState() string {
 		"Quick start:\n" +
 		"  dashmin add myapp postgres \"postgres://readonly:password@localhost:5432/myapp?sslmode=disable\"\n" +
 		"  dashmin query myapp users \"SELECT COUNT(*) FROM users\"\n" +
-		"  dashmin status"
+		"  dashmin all"
 
 	b.WriteString(emptyStyle.Render(content))
 	return b.String()
@@ -410,8 +429,9 @@ func (m *DashboardModel) renderDetailView() string {
 	return detailBoxStyle.Render(b.String())
 }
 
-func RunDashboard(cfg *config.Config) error {
-	m := NewDashboard(cfg)
+
+func RunDashboard(cfg *config.Config, filterApp string) error {
+	m := NewDashboard(cfg, filterApp)
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	_, err := p.Run()
 	return err

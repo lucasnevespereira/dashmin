@@ -205,10 +205,5 @@ Contributions are welcome! Please read the [contributing guidelines](CONTRIBUTIN
 
 MIT License - see [LICENSE](LICENSE) for details.
 
-## Author
 
-Built by [Lucas Neves Pereira](https://lucasnp.dev) - minimalist backend engineer.
-
----
-
-**Like dashmin?** Star ⭐ the repo and [follow me](https://github.com/lucasnevespereira) for more minimal tools!
+**Like dashmin?** Star ⭐ the repo and [support me](https://github.com/lucasnevespereira) for more tools!

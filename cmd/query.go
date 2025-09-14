@@ -57,6 +57,6 @@ Examples:
 
 		fmt.Printf("✅ Added query '%s' to app '%s'\n", label, appName)
 		fmt.Printf("Query: %s\n", query)
-		fmt.Printf("\nView results: dashmin status\n")
+		fmt.Printf("\nView results: dashmin all\n")
 	},
 }

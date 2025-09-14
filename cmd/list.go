@@ -49,7 +49,7 @@ var listCmd = &cobra.Command{
 
 		fmt.Printf("Commands:\n")
 		fmt.Printf("  dashmin query <app> <label> \"<query>\"  # Add custom query\n")
-		fmt.Printf("  dashmin status                         # View dashboard\n")
+		fmt.Printf("  dashmin all                            # View dashboard\n")
 		fmt.Printf("  dashmin remove <app>                   # Remove app\n")
 	},
 }
