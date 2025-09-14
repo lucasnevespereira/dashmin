@@ -7,23 +7,13 @@ Quick insights without the bloat. Monitor your databases with simple queries - n
 ## Features
 
 - **Multi-database support** - PostgreSQL, MySQL, MongoDB
-- **Custom queries** - Define the metrics that matter to you
-- **Real-time TUI** - Beautiful terminal interface with live updates
-- **Minimal config** - Simple YAML configuration
-- **Single binary** - No dependencies, easy deployment
+- **Custom queries** - Track the metrics that matter to you
+- **Minimal setup** - Simple commands, no complex configuration
 
 ## Installation
 
-### From source
 ```bash
 go install github.com/lucasnevespereira/dashmin@latest
-```
-
-### Build locally
-```bash
-git clone https://github.com/lucasnevespereira/dashmin.git
-cd dashmin
-go build -o dashmin main.go
 ```
 
 ## Quick Start
@@ -46,23 +36,15 @@ dashmin all          # See all apps
 dashmin see myapp    # See specific app
 ```
 
-## Usage
-
-### Commands
+## Commands
 
 ```bash
-# Setup
-dashmin add <name> <type> <connection-string>
-dashmin query <app> <label> <query>
-
-# View dashboards
-dashmin all          # All apps overview
-dashmin see <app>    # Single app focus
-
-# Management
-dashmin list         # Show configuration
-dashmin test <app>   # Test connection
-dashmin remove <app> # Remove app
+dashmin add <app> <type> <connection>     # Add new app
+dashmin query <app> <label> <query>       # Add query to track
+dashmin all                               # View all apps
+dashmin see <app>                         # View specific app
+dashmin list                              # Show configuration
+dashmin test <app>                        # Test connection
 ```
 
 ### Common Queries
@@ -127,18 +109,10 @@ Examples:
 - `users.count({"status": "active"})` - Count active users
 - `orders.count({"date": {"$gte": "2024-01-01"}})` - Count recent orders
 
-## Dashboard Features
-
-- 🟢 **Live status indicators** - Green for success, red for errors, yellow for warnings
-- 📊 **Real-time metrics** - Auto-refreshing data with timestamps
-- 🔍 **Detailed views** - Drill down into query results
-- ⌨️ **Keyboard shortcuts** - Efficient navigation and controls
-
 ### Keyboard Shortcuts
 
 - `r` - Refresh data
-- `↑/↓` - Navigate results
-- `q` or `Ctrl+C` - Quit
+- `q` - Quit
 
 ## Troubleshooting
 
@@ -148,49 +122,16 @@ If you're having connection issues:
 dashmin test <app-name>
 ```
 
-## Examples
-
-### Multiple Apps Setup
-```bash
-# Add production apps
-dashmin add blogbuddy postgres "postgres://readonly:password@pg.prod.com:5432/blogbuddy_prod?sslmode=disable"
-dashmin add pingbuddy mysql "readonly:pass@tcp(mysql.prod.com:3306)/pingbuddy"
-dashmin add analytics mongodb "mongodb://readonly:pass@mongo.prod.com:27017/analytics"
-
-# Add common queries to all SQL apps
-dashmin query blogbuddy users "SELECT COUNT(*) FROM users"
-dashmin query blogbuddy signups_today "SELECT COUNT(*) FROM users WHERE DATE(created_at) = CURDATE()"
-dashmin query pingbuddy users "SELECT COUNT(*) FROM users"
-dashmin query pingbuddy monitors "SELECT COUNT(*) FROM monitors WHERE status = 'active'"
-
-# Add MongoDB queries
-dashmin query analytics users "users.count({})"
-dashmin query analytics active_sessions "sessions.count({\"status\": \"active\"})"
-
-# View dashboard
-dashmin status
-```
 
 ## Development
 
 ```bash
-# Clone
 git clone https://github.com/lucasnevespereira/dashmin
 cd dashmin
-
-# Install dependencies
 go mod tidy
-
-# Run
-go run main.go status
-
-# Build
-go build -o dashmin main.go
+go run main.go all
 ```
 
-## Contributing
-
-Contributions are welcome! Please read the [contributing guidelines](CONTRIBUTING.md) first.
 
 ## License
 
