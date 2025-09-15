@@ -21,4 +21,5 @@ lint:
 	golangci-lint run
 
 clean:
+	rm -rf $(APP_NAME)
 	rm -rf bin/

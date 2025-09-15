@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/lucasnevespereira/dashmin/internal/config"
 	"github.com/spf13/cobra"
-	"github.com/lucasnevespereira/dashmin/config"
 )
 
 var listCmd = &cobra.Command{
@@ -30,7 +30,7 @@ var listCmd = &cobra.Command{
 
 		for name, app := range cfg.Apps {
 			fmt.Printf("▸ %s (%s)\n", name, app.Type)
-			
+
 			if len(app.Queries) > 0 {
 				fmt.Printf("  Queries:\n")
 				for label, query := range app.Queries {
@@ -131,7 +131,7 @@ func maskConnection(conn string) string {
 		}
 		return strings.Join(parts, " ")
 	}
-	
+
 	if strings.Contains(conn, ":") && strings.Contains(conn, "@") {
 		// Handle user:pass@host format
 		parts := strings.Split(conn, "@")
@@ -142,6 +142,6 @@ func maskConnection(conn string) string {
 			}
 		}
 	}
-	
+
 	return conn
 }

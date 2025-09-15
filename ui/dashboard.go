@@ -7,8 +7,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/lucasnevespereira/dashmin/config"
-	"github.com/lucasnevespereira/dashmin/db"
+	"github.com/lucasnevespereira/dashmin/internal/config"
+	"github.com/lucasnevespereira/dashmin/internal/db"
 )
 
 // Minimal color scheme
