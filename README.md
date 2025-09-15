@@ -42,10 +42,14 @@ dashmin see myapp    # See specific app
 ```bash
 dashmin add <app> <type> <connection>     # Add new app
 dashmin query <app> <label> <query>       # Add query to track
-dashmin prompt <app> "<natural language>" # Generate query with AI (optional)
-dashmin ai --provider openai --key sk-... # Setup AI (optional)
 dashmin all                               # View all apps
 dashmin see <app>                         # View specific app
+
+# Optional AI features
+dashmin prompt <app> "<natural language>" # Generate query with AI
+dashmin ai --provider openai --key sk-... # Setup AI
+
+# Other commands
 dashmin list                              # Show configuration
 dashmin test <app>                        # Test connection
 ```
@@ -79,6 +83,7 @@ dashmin query webapp total_users "users.count({})"
 dashmin query webapp active_users "users.count({\"status\": \"active\"})"
 dashmin query webapp events_today "events.count({\"date\": {\"$gte\": \"2024-01-01\"}})"
 ```
+
 
 ## Configuration
 
