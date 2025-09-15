@@ -107,6 +107,9 @@ func (c *MongoConnection) Query(query string) (*Result, error) {
 			filter = bson.M{}
 		}
 
+		// Convert date strings to proper time.Time objects
+		filter = convertDatesInFilter(filter)
+
 		count, err := coll.CountDocuments(ctx, filter)
 		if err != nil {
 			return &Result{Error: err}, nil
@@ -185,4 +188,32 @@ func ConnectMongoDB(connectionString string) (Connection, error) {
 	}
 
 	return &MongoConnection{client: client, dbName: dbName}, nil
+}
+
+// convertDatesInFilter converts ISO date strings to time.Time objects for MongoDB queries
+func convertDatesInFilter(filter bson.M) bson.M {
+	for key, value := range filter {
+		switch v := value.(type) {
+		case map[string]interface{}:
+			// Handle nested operators like {"$gte": "2024-01-01"}
+			for op, val := range v {
+				if dateStr, ok := val.(string); ok {
+					if parsedDate, err := time.Parse("2006-01-02", dateStr); err == nil {
+						v[op] = parsedDate
+					} else if parsedDate, err := time.Parse(time.RFC3339, dateStr); err == nil {
+						v[op] = parsedDate
+					}
+				}
+			}
+			filter[key] = v
+		case string:
+			// Handle direct date comparisons
+			if parsedDate, err := time.Parse("2006-01-02", v); err == nil {
+				filter[key] = parsedDate
+			} else if parsedDate, err := time.Parse(time.RFC3339, v); err == nil {
+				filter[key] = parsedDate
+			}
+		}
+	}
+	return filter
 }

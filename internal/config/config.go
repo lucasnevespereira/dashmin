@@ -15,7 +15,13 @@ type App struct {
 	Queries    map[string]string `yaml:"queries"`
 }
 
+type AIConfig struct {
+	Provider string `yaml:"provider,omitempty"` // openai, anthropic
+	APIKey   string `yaml:"api_key,omitempty"`
+}
+
 type Config struct {
+	AI   *AIConfig       `yaml:"ai,omitempty"`
 	Apps map[string]App `yaml:"apps"`
 }
 
@@ -32,7 +38,7 @@ func EnsureConfigDir() error {
 
 func Load() (*Config, error) {
 	configPath := GetConfigPath()
-	
+
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		return &Config{Apps: make(map[string]App)}, nil
 	}

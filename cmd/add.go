@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/lucasnevespereira/dashmin/internal/config"
 	"github.com/spf13/cobra"
-	"github.com/lucasnevespereira/dashmin/config"
 )
 
 var addCmd = &cobra.Command{

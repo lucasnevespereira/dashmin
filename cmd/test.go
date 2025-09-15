@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/spf13/cobra"
-	"github.com/lucasnevespereira/dashmin/config"
+	"github.com/lucasnevespereira/dashmin/internal/config"
 	"github.com/lucasnevespereira/dashmin/ui"
+	"github.com/spf13/cobra"
 )
 
 var testCmd = &cobra.Command{
@@ -41,7 +41,7 @@ var testCmd = &cobra.Command{
 		conn, err := ui.ConnectDatabase(app)
 		if err != nil {
 			fmt.Printf("❌ Connection failed: %v\n\n", err)
-			
+
 			fmt.Printf("💡 Troubleshooting tips:\n")
 			fmt.Printf("• Check if the database server is running\n")
 			fmt.Printf("• Verify the connection string format:\n")
@@ -61,7 +61,7 @@ var testCmd = &cobra.Command{
 		defer func() { _ = conn.Close() }()
 
 		fmt.Printf("✅ Connection successful!\n\n")
-		
+
 		// Test a simple query
 		fmt.Printf("🔍 Testing basic query...\n")
 		var testQuery string
@@ -101,12 +101,12 @@ func maskConnectionString(conn string) string {
 		if len(parts) == 2 {
 			scheme := parts[0]
 			rest := parts[1]
-			
+
 			if strings.Contains(rest, "@") {
 				atParts := strings.SplitN(rest, "@", 2)
 				userPass := atParts[0]
 				hostDb := atParts[1]
-				
+
 				if strings.Contains(userPass, ":") {
 					userPassParts := strings.SplitN(userPass, ":", 2)
 					return fmt.Sprintf("%s://%s:***@%s", scheme, userPassParts[0], hostDb)
@@ -123,6 +123,6 @@ func maskConnectionString(conn string) string {
 			}
 		}
 	}
-	
+
 	return conn
 }

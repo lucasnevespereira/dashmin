@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
-	"github.com/lucasnevespereira/dashmin/config"
+	"github.com/lucasnevespereira/dashmin/internal/config"
 	"github.com/lucasnevespereira/dashmin/ui"
+	"github.com/spf13/cobra"
 )
 
 var rootCmd = &cobra.Command{
@@ -94,6 +94,8 @@ func init() {
 	rootCmd.AddCommand(seeCmd)
 	rootCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(queryCmd)
+	rootCmd.AddCommand(promptCmd)
+	rootCmd.AddCommand(aiCmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(removeCmd)
 	rootCmd.AddCommand(configCmd)
