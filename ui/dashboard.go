@@ -2,27 +2,29 @@ package ui
 
 import (
 	"fmt"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/lucasnevespereira/dashmin/internal/config"
 	"github.com/lucasnevespereira/dashmin/internal/db"
+	"golang.org/x/sync/errgroup"
 )
 
 // Minimal color scheme
 var (
-	violet = lipgloss.Color("#6366f1")
-	green  = lipgloss.Color("#10b981")
-	red    = lipgloss.Color("#ef4444")
-	gray   = lipgloss.Color("#6b7280")
-	white  = lipgloss.Color("#f9fafb")
-
-	titleStyle = lipgloss.NewStyle().Foreground(white).Background(violet).Padding(0, 1).Bold(true)
+	violet       = lipgloss.Color("#6366f1")
+	green        = lipgloss.Color("#10b981")
+	red          = lipgloss.Color("#ef4444")
+	gray         = lipgloss.Color("#6b7280")
+	white        = lipgloss.Color("#f9fafb")
+	titleStyle   = lipgloss.NewStyle().Foreground(white).Background(violet).Padding(0, 1).Bold(true)
 	successStyle = lipgloss.NewStyle().Foreground(green)
-	errorStyle = lipgloss.NewStyle().Foreground(red)
-	mutedStyle = lipgloss.NewStyle().Foreground(gray)
+	errorStyle   = lipgloss.NewStyle().Foreground(red)
+	mutedStyle   = lipgloss.NewStyle().Foreground(gray)
 )
 
 type QueryResult struct {
@@ -79,19 +81,37 @@ func (m *DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *DashboardModel) refreshData() tea.Cmd {
 	return func() tea.Msg {
-		var results []QueryResult
-
-		for appName, app := range m.config.Apps {
-			// Skip apps not matching filter
+		// Get sorted list of app names for deterministic ordering
+		var appNames []string
+		for appName := range m.config.Apps {
 			if m.filterApp != "" && appName != m.filterApp {
 				continue
 			}
+			appNames = append(appNames, appName)
+		}
+		sort.Strings(appNames)
 
-			appResults := queryApp(appName, app)
-			results = append(results, appResults...)
+		// Use errgroup for concurrent query execution
+		g := new(errgroup.Group)
+		var mu sync.Mutex
+		var allResults []QueryResult
+
+		for _, appName := range appNames {
+			app := m.config.Apps[appName]
+			g.Go(func() error {
+				appResults := queryApp(appName, app)
+				mu.Lock()
+				allResults = append(allResults, appResults...)
+				mu.Unlock()
+				return nil
+			})
 		}
 
-		return results
+		if err := g.Wait(); err != nil {
+			return err
+		}
+
+		return allResults
 	}
 }
 
@@ -107,8 +127,16 @@ func queryApp(appName string, app config.App) []QueryResult {
 	}
 	defer func() { _ = conn.Close() }()
 
+	// Get sorted list of query labels for deterministic ordering
+	var queryLabels []string
+	for label := range app.Queries {
+		queryLabels = append(queryLabels, label)
+	}
+	sort.Strings(queryLabels)
+
 	var results []QueryResult
-	for label, query := range app.Queries {
+	for _, label := range queryLabels {
+		query := app.Queries[label]
 		result, err := conn.Query(query)
 		if err != nil {
 			result = &db.Result{Error: err}
@@ -124,7 +152,6 @@ func queryApp(appName string, app config.App) []QueryResult {
 	return results
 }
 
-
 func formatValue(val interface{}) string {
 	switch v := val.(type) {
 	case int, int64:
@@ -137,7 +164,7 @@ func formatValue(val interface{}) string {
 		}
 		return v
 	default:
-		return fmt.Sprintf("%v", v)
+		return fmt.Sprintf("%v", val)
 	}
 }
 
@@ -217,8 +244,6 @@ func (m *DashboardModel) View() string {
 
 	return b.String()
 }
-
-
 
 func RunDashboard(cfg *config.Config, filterApp string) error {
 	m := NewDashboard(cfg, filterApp)

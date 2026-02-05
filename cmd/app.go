@@ -32,7 +32,7 @@ Examples:
   dashmin app add webapp mysql "user:pass@tcp(localhost:3306)/webapp"
   dashmin app add analytics mongodb "mongodb://user:pass@localhost:27017/analytics"`,
 	Args: cobra.ExactArgs(3),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		name := args[0]
 		dbType := args[1]
 		connection := args[2]
@@ -44,14 +44,12 @@ Examples:
 		}
 
 		if !validTypes[dbType] {
-			fmt.Printf("Error: Invalid database type '%s'. Supported: postgres, mysql, mongodb\n", dbType)
-			return
+			return fmt.Errorf("invalid database type '%s'. Supported: postgres, mysql, mongodb", dbType)
 		}
 
 		cfg, err := config.Load()
 		if err != nil {
-			fmt.Printf("Error loading config: %v\n", err)
-			return
+			return fmt.Errorf("loading config: %w", err)
 		}
 
 		app := config.App{
@@ -83,14 +81,14 @@ Examples:
 		cfg.Apps[name] = app
 
 		if err := cfg.Save(); err != nil {
-			fmt.Printf("Error saving config: %v\n", err)
-			return
+			return fmt.Errorf("saving config: %w", err)
 		}
 
 		fmt.Printf("Added app '%s' (%s)\n", name, dbType)
 		fmt.Printf("\nNext steps:\n")
 		fmt.Printf("  dashmin query add %s <label> \"<query>\"  # Add custom query\n", name)
 		fmt.Printf("  dashmin show                             # View dashboard\n")
+		return nil
 	},
 }
 
@@ -102,13 +100,12 @@ var appRemoveCmd = &cobra.Command{
 Examples:
   dashmin app remove myapp`,
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		appName := args[0]
 
 		cfg, err := config.Load()
 		if err != nil {
-			fmt.Printf("Error loading config: %v\n", err)
-			return
+			return fmt.Errorf("loading config: %w", err)
 		}
 
 		if _, exists := cfg.Apps[appName]; !exists {
@@ -120,17 +117,17 @@ Examples:
 				}
 				fmt.Printf("\n")
 			}
-			return
+			return fmt.Errorf("app '%s' not found", appName)
 		}
 
 		delete(cfg.Apps, appName)
 
 		if err := cfg.Save(); err != nil {
-			fmt.Printf("Error saving config: %v\n", err)
-			return
+			return fmt.Errorf("saving config: %w", err)
 		}
 
 		fmt.Printf("Removed app '%s'\n", appName)
+		return nil
 	},
 }
 
@@ -138,18 +135,17 @@ var appListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all configured apps",
 	Long:  "Show all configured applications and their queries.",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.Load()
 		if err != nil {
-			fmt.Printf("Error loading config: %v\n", err)
-			return
+			return fmt.Errorf("loading config: %w", err)
 		}
 
 		if len(cfg.Apps) == 0 {
 			fmt.Println("No apps configured yet.")
 			fmt.Println("\nAdd your first app:")
 			fmt.Println("  dashmin app add myapp postgres \"postgres://readonly:password@localhost:5432/myapp?sslmode=disable\"")
-			return
+			return nil
 		}
 
 		fmt.Printf("Configured Apps (%d):\n\n", len(cfg.Apps))
@@ -171,6 +167,7 @@ var appListCmd = &cobra.Command{
 			}
 			fmt.Printf("\n")
 		}
+		return nil
 	},
 }
 
@@ -182,13 +179,12 @@ var appTestCmd = &cobra.Command{
 Examples:
   dashmin app test myapp`,
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		appName := args[0]
 
 		cfg, err := config.Load()
 		if err != nil {
-			fmt.Printf("Error loading config: %v\n", err)
-			return
+			return fmt.Errorf("loading config: %w", err)
 		}
 
 		app, exists := cfg.Apps[appName]
@@ -201,7 +197,7 @@ Examples:
 				}
 				fmt.Printf("\n")
 			}
-			return
+			return fmt.Errorf("app '%s' not found", appName)
 		}
 
 		fmt.Printf("Testing connection to '%s' (%s)...\n", appName, app.Type)
@@ -209,8 +205,6 @@ Examples:
 
 		conn, err := db.ConnectByType(app.Type, app.Connection)
 		if err != nil {
-			fmt.Printf("Connection failed: %v\n\n", err)
-
 			fmt.Printf("Troubleshooting tips:\n")
 			fmt.Printf("  - Check if the database server is running\n")
 			fmt.Printf("  - Verify the connection string format:\n")
@@ -224,7 +218,7 @@ Examples:
 			}
 			fmt.Printf("  - Check network connectivity\n")
 			fmt.Printf("  - Verify credentials are correct\n")
-			return
+			return fmt.Errorf("connection failed: %w", err)
 		}
 		defer func() { _ = conn.Close() }()
 
@@ -241,13 +235,11 @@ Examples:
 
 		result, err := conn.Query(testQuery)
 		if err != nil {
-			fmt.Printf("Query failed: %v\n", err)
-			return
+			return fmt.Errorf("query failed: %w", err)
 		}
 
 		if result.Error != nil {
-			fmt.Printf("Query error: %v\n", result.Error)
-			return
+			return fmt.Errorf("query error: %w", result.Error)
 		}
 
 		fmt.Printf("Query executed successfully!\n")
@@ -258,9 +250,9 @@ Examples:
 		fmt.Printf("\nConnection and basic queries working correctly!\n")
 		fmt.Printf("You can now add custom queries with:\n")
 		fmt.Printf("  dashmin query add %s <label> \"<your-query>\"\n", appName)
+		return nil
 	},
 }
-
 
 func init() {
 	appCmd.AddCommand(appAddCmd)
