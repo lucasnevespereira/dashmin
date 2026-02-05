@@ -19,12 +19,15 @@ var (
 	violet       = lipgloss.Color("#6366f1")
 	green        = lipgloss.Color("#10b981")
 	red          = lipgloss.Color("#ef4444")
+	orange       = lipgloss.Color("#f97316")
 	gray         = lipgloss.Color("#6b7280")
 	white        = lipgloss.Color("#f9fafb")
 	titleStyle   = lipgloss.NewStyle().Foreground(white).Background(violet).Padding(0, 1).Bold(true)
 	successStyle = lipgloss.NewStyle().Foreground(green)
 	errorStyle   = lipgloss.NewStyle().Foreground(red)
+	timeoutStyle = lipgloss.NewStyle().Foreground(orange)
 	mutedStyle   = lipgloss.NewStyle().Foreground(gray)
+	modalStyle   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(1)
 )
 
 type QueryResult struct {
@@ -35,12 +38,14 @@ type QueryResult struct {
 }
 
 type DashboardModel struct {
-	config      *config.Config
-	results     []QueryResult
-	loading     bool
-	lastRefresh time.Time
-	error       error
-	filterApp   string
+	config       *config.Config
+	results      []QueryResult
+	loading      bool
+	lastRefresh  time.Time
+	error        error
+	filterApp    string
+	showErrors   bool
+	currentQuery string
 }
 
 func NewDashboard(cfg *config.Config, filterApp string) *DashboardModel {
@@ -64,19 +69,37 @@ func (m *DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "r":
 			m.loading = true
 			m.error = nil
+			m.showErrors = false
 			return m, m.refreshData()
+		case "?":
+			if hasErrors(m.results) {
+				m.showErrors = !m.showErrors
+			}
 		}
 	case []QueryResult:
 		m.results = msg
 		m.loading = false
 		m.lastRefresh = time.Now()
 		m.error = nil
+		m.currentQuery = ""
 	case error:
 		m.loading = false
 		m.error = msg
+	case string:
+		// Progress update message
+		m.currentQuery = msg
 	}
 
 	return m, nil
+}
+
+func hasErrors(results []QueryResult) bool {
+	for _, r := range results {
+		if r.Result.Error != nil {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *DashboardModel) refreshData() tea.Cmd {
@@ -168,7 +191,22 @@ func formatValue(val interface{}) string {
 	}
 }
 
+func isTimeoutError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	return strings.Contains(errStr, "timeout") ||
+		strings.Contains(errStr, "context deadline exceeded") ||
+		strings.Contains(errStr, "timed out")
+}
+
 func (m *DashboardModel) View() string {
+	// If error modal is open, show it
+	if m.showErrors {
+		return m.renderErrorModal()
+	}
+
 	var b strings.Builder
 
 	// Title with color
@@ -181,7 +219,11 @@ func (m *DashboardModel) View() string {
 
 	// Status with color
 	if m.loading {
-		b.WriteString(mutedStyle.Render("Loading..."))
+		if m.currentQuery != "" {
+			b.WriteString(mutedStyle.Render(fmt.Sprintf("Querying %s...", m.currentQuery)))
+		} else {
+			b.WriteString(mutedStyle.Render("Loading..."))
+		}
 		b.WriteString("\n\n")
 	} else if m.error != nil {
 		b.WriteString(errorStyle.Render(fmt.Sprintf("Error: %v", m.error)))
@@ -216,8 +258,13 @@ func (m *DashboardModel) View() string {
 
 				if result.Result.Error != nil {
 					value = "ERROR"
-					status = "✗"
-					statusColor = errorStyle
+					if isTimeoutError(result.Result.Error) {
+						status = "⚠"
+						statusColor = timeoutStyle
+					} else {
+						status = "✗"
+						statusColor = errorStyle
+					}
 				} else if len(result.Result.Rows) > 0 && len(result.Result.Rows[0]) > 0 {
 					value = formatValue(result.Result.Rows[0][0])
 					status = "✓"
@@ -240,9 +287,40 @@ func (m *DashboardModel) View() string {
 	}
 
 	// Help with muted color
-	b.WriteString(mutedStyle.Render("r: refresh, q: quit"))
+	if hasErrors(m.results) {
+		b.WriteString(mutedStyle.Render("r: refresh, q: quit, ?: errors"))
+	} else {
+		b.WriteString(mutedStyle.Render("r: refresh, q: quit"))
+	}
 
 	return b.String()
+}
+
+func (m *DashboardModel) renderErrorModal() string {
+	var b strings.Builder
+
+	b.WriteString(titleStyle.Render("Error Details"))
+	b.WriteString("\n\n")
+
+	var errorCount int
+	for _, result := range m.results {
+		if result.Result.Error != nil {
+			errorCount++
+			var statusColor lipgloss.Style
+			if isTimeoutError(result.Result.Error) {
+				statusColor = timeoutStyle
+			} else {
+				statusColor = errorStyle
+			}
+
+			b.WriteString(fmt.Sprintf("%s %s.%s\n", statusColor.Render("✗"), result.AppName, result.QueryLabel))
+			b.WriteString(fmt.Sprintf("  %s\n\n", result.Result.Error))
+		}
+	}
+
+	b.WriteString(mutedStyle.Render(fmt.Sprintf("%d error(s) found • Press ? to close", errorCount)))
+
+	return modalStyle.Render(b.String())
 }
 
 func RunDashboard(cfg *config.Config, filterApp string) error {

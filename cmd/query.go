@@ -13,9 +13,10 @@ import (
 )
 
 var (
-	saveFlag    bool
-	executeFlag bool
-	forceFlag   bool
+	saveFlag     bool
+	executeFlag  bool
+	forceFlag    bool
+	queryYesFlag bool
 )
 
 var queryCmd = &cobra.Command{
@@ -109,7 +110,8 @@ var queryRemoveCmd = &cobra.Command{
 
 Examples:
   dashmin query remove myapp users
-  dashmin query remove webapp revenue`,
+  dashmin query remove webapp revenue
+  dashmin query remove myapp users --yes`,
 	Args: cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		appName := args[0]
@@ -140,6 +142,15 @@ Examples:
 				fmt.Printf("\n")
 			}
 			return fmt.Errorf("query '%s' not found", label)
+		}
+
+		// Confirmation prompt
+		if !queryYesFlag {
+			message := fmt.Sprintf("Remove query '%s' from app '%s'?", label, appName)
+			if !confirmDestructive(message) {
+				fmt.Println("Cancelled.")
+				return nil
+			}
 		}
 
 		delete(app.Queries, label)
@@ -372,6 +383,7 @@ func saveGeneratedQuery(cfg *config.Config, appName, query, prompt string) {
 
 func init() {
 	queryAddCmd.Flags().BoolVar(&forceFlag, "force", false, "Skip query validation")
+	queryRemoveCmd.Flags().BoolVarP(&queryYesFlag, "yes", "y", false, "Skip confirmation prompt")
 	queryGenerateCmd.Flags().BoolVar(&saveFlag, "save", false, "Save the generated query")
 	queryGenerateCmd.Flags().BoolVar(&executeFlag, "execute", false, "Execute the generated query immediately")
 
