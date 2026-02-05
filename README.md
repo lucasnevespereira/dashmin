@@ -4,7 +4,7 @@
 
 You're coding, you want to quickly check how many users signed up today, or if there are errors in prod. Instead of opening a database UI, connecting, writing a query... just run `dashmin show`.
 
-![dashmin demo](demo.png)
+![dashmin demo](assets/demo.png)
 
 ## Why dashmin?
 
