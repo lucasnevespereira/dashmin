@@ -68,6 +68,18 @@ Examples:
 			app.Queries["users"] = "users.count({})"
 		}
 
+		// Validate connection
+		fmt.Printf("Testing connection to '%s'...\n", name)
+		conn, err := db.ConnectByType(dbType, connection)
+		if err != nil {
+			fmt.Printf("Warning: Connection failed: %v\n", err)
+			fmt.Printf("App saved anyway. Fix the connection string and test with:\n")
+			fmt.Printf("  dashmin app test %s\n\n", name)
+		} else {
+			_ = conn.Close()
+			fmt.Printf("Connection successful!\n\n")
+		}
+
 		cfg.Apps[name] = app
 
 		if err := cfg.Save(); err != nil {

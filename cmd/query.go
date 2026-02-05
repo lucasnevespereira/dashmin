@@ -67,6 +67,13 @@ Examples:
 		if app.Queries == nil {
 			app.Queries = make(map[string]string)
 		}
+
+		if existing, exists := app.Queries[label]; exists {
+			fmt.Printf("Warning: Overwriting existing query '%s'\n", label)
+			fmt.Printf("  Old: %s\n", existing)
+			fmt.Printf("  New: %s\n\n", query)
+		}
+
 		app.Queries[label] = query
 		cfg.Apps[appName] = app
 
