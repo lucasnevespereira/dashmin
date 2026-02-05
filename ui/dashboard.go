@@ -2,27 +2,29 @@ package ui
 
 import (
 	"fmt"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/lucasnevespereira/dashmin/internal/config"
 	"github.com/lucasnevespereira/dashmin/internal/db"
+	"golang.org/x/sync/errgroup"
 )
 
 // Minimal color scheme
 var (
-	violet = lipgloss.Color("#6366f1")
-	green  = lipgloss.Color("#10b981")
-	red    = lipgloss.Color("#ef4444")
-	gray   = lipgloss.Color("#6b7280")
-	white  = lipgloss.Color("#f9fafb")
-
-	titleStyle = lipgloss.NewStyle().Foreground(white).Background(violet).Padding(0, 1).Bold(true)
+	violet       = lipgloss.Color("#6366f1")
+	green        = lipgloss.Color("#10b981")
+	red          = lipgloss.Color("#ef4444")
+	gray         = lipgloss.Color("#6b7280")
+	white        = lipgloss.Color("#f9fafb")
+	titleStyle   = lipgloss.NewStyle().Foreground(white).Background(violet).Padding(0, 1).Bold(true)
 	successStyle = lipgloss.NewStyle().Foreground(green)
-	errorStyle = lipgloss.NewStyle().Foreground(red)
-	mutedStyle = lipgloss.NewStyle().Foreground(gray)
+	errorStyle   = lipgloss.NewStyle().Foreground(red)
+	mutedStyle   = lipgloss.NewStyle().Foreground(gray)
 )
 
 type QueryResult struct {
@@ -79,60 +81,76 @@ func (m *DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *DashboardModel) refreshData() tea.Cmd {
 	return func() tea.Msg {
-		var results []QueryResult
-
-		for appName, app := range m.config.Apps {
-			// Skip apps not matching filter
+		// Get sorted list of app names for deterministic ordering
+		var appNames []string
+		for appName := range m.config.Apps {
 			if m.filterApp != "" && appName != m.filterApp {
 				continue
 			}
+			appNames = append(appNames, appName)
+		}
+		sort.Strings(appNames)
 
-			// Connect to database
-			conn, err := ConnectDatabase(app)
-			if err != nil {
-				results = append(results, QueryResult{
-					AppName:     appName,
-					QueryLabel:  "Connection",
-					Result:      &db.Result{Error: err},
-					LastUpdated: time.Now(),
-				})
-				continue
-			}
-			defer func() { _ = conn.Close() }()
+		// Use errgroup for concurrent query execution
+		g := new(errgroup.Group)
+		var mu sync.Mutex
+		var allResults []QueryResult
 
-			// Execute queries
-			for label, query := range app.Queries {
-				result, err := conn.Query(query)
-				if err != nil {
-					result = &db.Result{Error: err}
-				}
-
-				results = append(results, QueryResult{
-					AppName:     appName,
-					QueryLabel:  label,
-					Result:      result,
-					LastUpdated: time.Now(),
-				})
-			}
+		for _, appName := range appNames {
+			app := m.config.Apps[appName]
+			g.Go(func() error {
+				appResults := queryApp(appName, app)
+				mu.Lock()
+				allResults = append(allResults, appResults...)
+				mu.Unlock()
+				return nil
+			})
 		}
 
-		return results
+		if err := g.Wait(); err != nil {
+			return err
+		}
+
+		return allResults
 	}
 }
 
-func ConnectDatabase(app config.App) (db.Connection, error) {
-	switch app.Type {
-	case "postgres":
-		return db.ConnectPostgres(app.Connection)
-	case "mysql":
-		return db.ConnectMySQL(app.Connection)
-	case "mongodb":
-		return db.ConnectMongoDB(app.Connection)
-	default:
-		return nil, fmt.Errorf("unsupported database type: %s", app.Type)
+func queryApp(appName string, app config.App) []QueryResult {
+	conn, err := db.ConnectByType(app.Type, app.Connection)
+	if err != nil {
+		return []QueryResult{{
+			AppName:     appName,
+			QueryLabel:  "Connection",
+			Result:      &db.Result{Error: err},
+			LastUpdated: time.Now(),
+		}}
 	}
-}
+	defer func() { _ = conn.Close() }()
 
+	// Get sorted list of query labels for deterministic ordering
+	var queryLabels []string
+	for label := range app.Queries {
+		queryLabels = append(queryLabels, label)
+	}
+	sort.Strings(queryLabels)
+
+	var results []QueryResult
+	for _, label := range queryLabels {
+		query := app.Queries[label]
+		result, err := conn.Query(query)
+		if err != nil {
+			result = &db.Result{Error: err}
+		}
+
+		results = append(results, QueryResult{
+			AppName:     appName,
+			QueryLabel:  label,
+			Result:      result,
+			LastUpdated: time.Now(),
+		})
+	}
+	return results
+}
 
 func formatValue(val interface{}) string {
 	switch v := val.(type) {
@@ -146,7 +164,7 @@ func formatValue(val interface{}) string {
 		}
 		return v
 	default:
-		return fmt.Sprintf("%v", v)
+		return fmt.Sprintf("%v", val)
 	}
 }
 
@@ -226,8 +244,6 @@ func (m *DashboardModel) View() string {
 
 	return b.String()
 }
-
-
 
 func RunDashboard(cfg *config.Config, filterApp string) error {
 	m := NewDashboard(cfg, filterApp)

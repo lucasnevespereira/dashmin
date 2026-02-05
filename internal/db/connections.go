@@ -31,8 +31,14 @@ type SQLConnection struct {
 }
 
 func (c *SQLConnection) Query(query string) (*Result, error) {
-	rows, err := c.db.Query(query)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	rows, err := c.db.QueryContext(ctx, query)
 	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return &Result{Error: fmt.Errorf("query timed out after 10s")}, nil
+		}
 		return &Result{Error: err}, nil
 	}
 	defer func() { _ = rows.Close() }()
@@ -188,6 +194,20 @@ func ConnectMongoDB(connectionString string) (Connection, error) {
 	}
 
 	return &MongoConnection{client: client, dbName: dbName}, nil
+}
+
+// ConnectByType connects to a database given its type and connection string
+func ConnectByType(dbType, connectionString string) (Connection, error) {
+	switch dbType {
+	case "postgres":
+		return ConnectPostgres(connectionString)
+	case "mysql":
+		return ConnectMySQL(connectionString)
+	case "mongodb":
+		return ConnectMongoDB(connectionString)
+	default:
+		return nil, fmt.Errorf("unsupported database type: %s", dbType)
+	}
 }
 
 // convertDatesInFilter converts ISO date strings to time.Time objects for MongoDB queries

@@ -15,6 +15,7 @@ import (
 var (
 	saveFlag    bool
 	executeFlag bool
+	forceFlag   bool
 )
 
 var queryCmd = &cobra.Command{
@@ -38,46 +39,66 @@ Examples:
   dashmin query add myapp users "SELECT COUNT(*) FROM users"
   dashmin query add myapp posts "SELECT COUNT(*) FROM posts WHERE created_at > NOW() - INTERVAL '30 days'"
   dashmin query add webapp revenue "SELECT SUM(amount) FROM payments WHERE DATE(created_at) = CURDATE()"
-  dashmin query add analytics active_users "users.count({\"status\": \"active\"})"`,
+  dashmin query add analytics active_users "users.count({\"status\": \"active\"})"
+
+The query will be validated against the database. Use --force to skip validation.`,
 	Args: cobra.ExactArgs(3),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		appName := args[0]
 		label := args[1]
 		query := args[2]
 
 		cfg, err := config.Load()
 		if err != nil {
-			fmt.Printf("Error loading config: %v\n", err)
-			return
+			return fmt.Errorf("loading config: %w", err)
 		}
 
 		app, exists := cfg.Apps[appName]
 		if !exists {
-			fmt.Printf("Error: App '%s' not found.\n", appName)
-			if len(cfg.Apps) > 0 {
-				fmt.Printf("Available apps: ")
-				for name := range cfg.Apps {
-					fmt.Printf("%s ", name)
-				}
-				fmt.Printf("\n")
-			}
-			return
+			return appNotFoundError(appName, cfg)
 		}
 
 		if app.Queries == nil {
 			app.Queries = make(map[string]string)
 		}
+
+		if existing, exists := app.Queries[label]; exists {
+			fmt.Printf("Warning: Overwriting existing query '%s'\n", label)
+			fmt.Printf("  Old: %s\n", existing)
+			fmt.Printf("  New: %s\n\n", query)
+		}
+
+		// Validate query unless --force is used
+		if !forceFlag {
+			fmt.Printf("Validating query...\n")
+			conn, err := db.ConnectByType(app.Type, app.Connection)
+			if err != nil {
+				return fmt.Errorf("connecting to database for validation: %w", err)
+			}
+			defer func() { _ = conn.Close() }()
+
+			_, err = conn.Query(query)
+			if err != nil {
+				fmt.Printf("\n✗ Query validation failed:\n")
+				fmt.Printf("  Error: %v\n\n", err)
+				fmt.Printf("The query was not added.\n")
+				fmt.Printf("To add it anyway, use: dashmin query add %s %s \"%s\" --force\n", appName, label, query)
+				return fmt.Errorf("query validation failed")
+			}
+			fmt.Printf("✓ Query validated successfully\n\n")
+		}
+
 		app.Queries[label] = query
 		cfg.Apps[appName] = app
 
 		if err := cfg.Save(); err != nil {
-			fmt.Printf("Error saving config: %v\n", err)
-			return
+			return fmt.Errorf("saving config: %w", err)
 		}
 
 		fmt.Printf("Added query '%s' to app '%s'\n", label, appName)
 		fmt.Printf("Query: %s\n", query)
 		fmt.Printf("\nView results: dashmin show %s\n", appName)
+		return nil
 	},
 }
 
@@ -90,32 +111,22 @@ Examples:
   dashmin query remove myapp users
   dashmin query remove webapp revenue`,
 	Args: cobra.ExactArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		appName := args[0]
 		label := args[1]
 
 		cfg, err := config.Load()
 		if err != nil {
-			fmt.Printf("Error loading config: %v\n", err)
-			return
+			return fmt.Errorf("loading config: %w", err)
 		}
 
 		app, exists := cfg.Apps[appName]
 		if !exists {
-			fmt.Printf("Error: App '%s' not found.\n", appName)
-			if len(cfg.Apps) > 0 {
-				fmt.Printf("Available apps: ")
-				for name := range cfg.Apps {
-					fmt.Printf("%s ", name)
-				}
-				fmt.Printf("\n")
-			}
-			return
+			return appNotFoundError(appName, cfg)
 		}
 
 		if app.Queries == nil {
-			fmt.Printf("App '%s' has no queries.\n", appName)
-			return
+			return fmt.Errorf("app '%s' has no queries", appName)
 		}
 
 		querySQL, queryExists := app.Queries[label]
@@ -128,19 +139,19 @@ Examples:
 				}
 				fmt.Printf("\n")
 			}
-			return
+			return fmt.Errorf("query '%s' not found", label)
 		}
 
 		delete(app.Queries, label)
 		cfg.Apps[appName] = app
 
 		if err := cfg.Save(); err != nil {
-			fmt.Printf("Error saving config: %v\n", err)
-			return
+			return fmt.Errorf("saving config: %w", err)
 		}
 
 		fmt.Printf("Removed query '%s' from app '%s'\n", label, appName)
 		fmt.Printf("Query was: %s\n", querySQL)
+		return nil
 	},
 }
 
@@ -152,33 +163,24 @@ var queryListCmd = &cobra.Command{
 Examples:
   dashmin query list myapp`,
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		appName := args[0]
 
 		cfg, err := config.Load()
 		if err != nil {
-			fmt.Printf("Error loading config: %v\n", err)
-			return
+			return fmt.Errorf("loading config: %w", err)
 		}
 
 		app, exists := cfg.Apps[appName]
 		if !exists {
-			fmt.Printf("Error: App '%s' not found.\n", appName)
-			if len(cfg.Apps) > 0 {
-				fmt.Printf("Available apps: ")
-				for name := range cfg.Apps {
-					fmt.Printf("%s ", name)
-				}
-				fmt.Printf("\n")
-			}
-			return
+			return appNotFoundError(appName, cfg)
 		}
 
 		if len(app.Queries) == 0 {
 			fmt.Printf("No queries configured for '%s'.\n", appName)
 			fmt.Printf("\nAdd a query:\n")
 			fmt.Printf("  dashmin query add %s <label> \"<query>\"\n", appName)
-			return
+			return nil
 		}
 
 		fmt.Printf("Queries for '%s' (%d):\n\n", appName, len(app.Queries))
@@ -187,6 +189,7 @@ Examples:
 			fmt.Printf("  %s\n", label)
 			fmt.Printf("    %s\n\n", query)
 		}
+		return nil
 	},
 }
 
@@ -202,41 +205,31 @@ Examples:
   dashmin query generate myapp "active premium users" --execute
   dashmin query generate myapp "posts published last week" --save --execute`,
 	Args: cobra.ExactArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		appName := args[0]
 		prompt := args[1]
 
 		cfg, err := config.Load()
 		if err != nil {
-			fmt.Printf("Error loading config: %v\n", err)
-			return
+			return fmt.Errorf("loading config: %w", err)
 		}
 
 		if cfg.AI == nil || cfg.AI.APIKey == "" {
 			fmt.Printf("AI not configured. Set up AI integration first:\n")
 			fmt.Printf("\n  dashmin config ai --provider openai --key sk-your-key\n")
 			fmt.Printf("  dashmin config ai status\n")
-			return
+			return fmt.Errorf("AI not configured")
 		}
 
 		app, exists := cfg.Apps[appName]
 		if !exists {
-			fmt.Printf("Error: App '%s' not found.\n", appName)
-			if len(cfg.Apps) > 0 {
-				fmt.Printf("Available apps: ")
-				for name := range cfg.Apps {
-					fmt.Printf("%s ", name)
-				}
-				fmt.Printf("\n")
-			}
-			return
+			return appNotFoundError(appName, cfg)
 		}
 
 		fmt.Printf("Analyzing database schema...\n")
-		conn, err := connectToApp(app)
+		conn, err := db.ConnectByType(app.Type, app.Connection)
 		if err != nil {
-			fmt.Printf("Failed to connect to database: %v\n", err)
-			return
+			return fmt.Errorf("connecting to database: %w", err)
 		}
 		defer func() { _ = conn.Close() }()
 
@@ -249,8 +242,7 @@ Examples:
 		fmt.Printf("Generating query...\n")
 		engine, err := ai.NewEngine(cfg.AI.Provider, cfg.AI.APIKey)
 		if err != nil {
-			fmt.Printf("Failed to initialize AI engine: %v\n", err)
-			return
+			return fmt.Errorf("initializing AI engine: %w", err)
 		}
 
 		response, err := engine.GenerateQuery(ai.QueryRequest{
@@ -259,13 +251,11 @@ Examples:
 			DatabaseType: app.Type,
 		})
 		if err != nil {
-			fmt.Printf("Failed to generate query: %v\n", err)
-			return
+			return fmt.Errorf("generating query: %w", err)
 		}
 
 		if response.Error != "" {
-			fmt.Printf("AI Error: %s\n", response.Error)
-			return
+			return fmt.Errorf("AI error: %s", response.Error)
 		}
 
 		fmt.Printf("\nGenerated Query:\n")
@@ -281,20 +271,20 @@ Examples:
 		if saveFlag {
 			saveGeneratedQuery(cfg, appName, response.SQL, prompt)
 		}
+		return nil
 	},
 }
 
-func connectToApp(app config.App) (db.Connection, error) {
-	switch app.Type {
-	case "postgres":
-		return db.ConnectPostgres(app.Connection)
-	case "mysql":
-		return db.ConnectMySQL(app.Connection)
-	case "mongodb":
-		return db.ConnectMongoDB(app.Connection)
-	default:
-		return nil, fmt.Errorf("unsupported database type: %s", app.Type)
+func appNotFoundError(appName string, cfg *config.Config) error {
+	fmt.Printf("Error: App '%s' not found.\n", appName)
+	if len(cfg.Apps) > 0 {
+		fmt.Printf("Available apps: ")
+		for name := range cfg.Apps {
+			fmt.Printf("%s ", name)
+		}
+		fmt.Printf("\n")
 	}
+	return fmt.Errorf("app '%s' not found", appName)
 }
 
 func executeGeneratedQuery(conn db.Connection, query string) {
@@ -381,6 +371,7 @@ func saveGeneratedQuery(cfg *config.Config, appName, query, prompt string) {
 }
 
 func init() {
+	queryAddCmd.Flags().BoolVar(&forceFlag, "force", false, "Skip query validation")
 	queryGenerateCmd.Flags().BoolVar(&saveFlag, "save", false, "Save the generated query")
 	queryGenerateCmd.Flags().BoolVar(&executeFlag, "execute", false, "Execute the generated query immediately")
 

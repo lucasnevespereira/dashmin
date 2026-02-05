@@ -12,3 +12,9 @@ type QueryResponse struct {
 	SQL   string
 	Error string
 }
+
+// PromptMessages holds the system and user messages for AI providers
+type PromptMessages struct {
+	System string
+	User   string
+}

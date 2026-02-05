@@ -16,6 +16,7 @@ Examples:
   dashmin app add myapp postgres "postgres://user:pass@host/db"
   dashmin query add myapp users "SELECT COUNT(*) FROM users"
   dashmin show`,
+	SilenceUsage: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		_ = cmd.Help()
 	},
