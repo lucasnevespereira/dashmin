@@ -11,6 +11,8 @@ func GetDatabaseSchema(conn Connection, dbType string) (string, error) {
 		return getPostgresSchema(conn)
 	case "mysql":
 		return getMySQLSchema(conn)
+	case "sqlite":
+		return getSQLiteSchema(conn)
 	case "mongodb":
 		return getMongoDBSchema(conn)
 	default:
@@ -64,6 +66,31 @@ func getMySQLSchema(conn Connection) (string, error) {
 	}
 
 	return formatSchemaResult(result, "MySQL"), nil
+}
+
+func getSQLiteSchema(conn Connection) (string, error) {
+	query := `
+		SELECT 
+			m.name as table_name,
+			p.name as column_name,
+			p.type as data_type,
+			CASE WHEN p."notnull" = 0 THEN 'YES' ELSE 'NO' END as is_nullable
+		FROM sqlite_master m
+		JOIN pragma_table_info(m.name) p
+		WHERE m.type = 'table' AND m.name NOT LIKE 'sqlite_%'
+		ORDER BY m.name, p.cid
+	`
+
+	result, err := conn.Query(query)
+	if err != nil {
+		return "", fmt.Errorf("failed to get SQLite schema: %w", err)
+	}
+
+	if result.Error != nil {
+		return "", fmt.Errorf("schema query error: %w", result.Error)
+	}
+
+	return formatSchemaResult(result, "SQLite"), nil
 }
 
 func getMongoDBSchema(conn Connection) (string, error) {

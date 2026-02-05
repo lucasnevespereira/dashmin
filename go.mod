@@ -7,6 +7,7 @@ require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/jackc/pgx/v5 v5.7.5
+	github.com/mattn/go-sqlite3 v1.14.33
 	github.com/spf13/cobra v1.10.1
 	go.mongodb.org/mongo-driver v1.17.4
 	golang.org/x/sync v0.19.0

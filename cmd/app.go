@@ -58,7 +58,7 @@ var appAddCmd = &cobra.Command{
 	Short: "Add a new app to monitor",
 	Long: `Add a new application to monitor with its database connection.
 
-Supported database types: postgres, mysql, mongodb
+Supported database types: postgres, mysql, mongodb, sqlite
 
 Examples:
   dashmin app add myapp postgres "postgres://readonly:password@localhost:5432/myapp?sslmode=disable"
@@ -74,10 +74,11 @@ Examples:
 			"postgres": true,
 			"mysql":    true,
 			"mongodb":  true,
+			"sqlite":   true,
 		}
 
 		if !validTypes[dbType] {
-			return fmt.Errorf("invalid database type '%s'. Supported: postgres, mysql, mongodb", dbType)
+			return fmt.Errorf("invalid database type '%s'. Supported: postgres, mysql, mongodb, sqlite", dbType)
 		}
 
 		cfg, err := config.Load()
@@ -265,6 +266,8 @@ Examples:
 				fmt.Printf("    user:password@tcp(host:port)/database\n")
 			case "mongodb":
 				fmt.Printf("    mongodb://user:password@host:port/database\n")
+			case "sqlite":
+				fmt.Printf("    sqlite:///path/to/database.db\n")
 			}
 			fmt.Printf("  - Check network connectivity\n")
 			fmt.Printf("  - Verify credentials are correct\n")
@@ -277,7 +280,7 @@ Examples:
 		fmt.Printf("Testing basic query...\n")
 		var testQuery string
 		switch app.Type {
-		case "postgres", "mysql":
+		case "postgres", "mysql", "sqlite":
 			testQuery = "SELECT 1 as test"
 		case "mongodb":
 			testQuery = "test.count({})"

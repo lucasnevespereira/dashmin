@@ -10,6 +10,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	_ "github.com/mattn/go-sqlite3"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -196,6 +197,24 @@ func ConnectMongoDB(connectionString string) (Connection, error) {
 	return &MongoConnection{client: client, dbName: dbName}, nil
 }
 
+// ConnectSQLite connects to SQLite using a file path
+// Connection string format: sqlite:///path/to/database.db
+func ConnectSQLite(connectionString string) (Connection, error) {
+	// Remove the sqlite:// prefix if present
+	dbPath := strings.TrimPrefix(connectionString, "sqlite://")
+
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to sqlite: %w", err)
+	}
+
+	if err := db.Ping(); err != nil {
+		return nil, fmt.Errorf("failed to ping sqlite: %w", err)
+	}
+
+	return &SQLConnection{db: db}, nil
+}
+
 // ConnectByType connects to a database given its type and connection string
 func ConnectByType(dbType, connectionString string) (Connection, error) {
 	switch dbType {
@@ -205,6 +224,8 @@ func ConnectByType(dbType, connectionString string) (Connection, error) {
 		return ConnectMySQL(connectionString)
 	case "mongodb":
 		return ConnectMongoDB(connectionString)
+	case "sqlite":
+		return ConnectSQLite(connectionString)
 	default:
 		return nil, fmt.Errorf("unsupported database type: %s", dbType)
 	}
