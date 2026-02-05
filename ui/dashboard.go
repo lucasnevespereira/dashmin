@@ -172,8 +172,9 @@ func (m *DashboardModel) View() string {
 		if len(m.results) == 0 {
 			b.WriteString("No apps configured.\n\n")
 			b.WriteString("Quick start:\n")
-			b.WriteString("  dashmin add myapp postgres \"postgres://user:pass@host/db\"\n")
-			b.WriteString("  dashmin all\n\n")
+			b.WriteString("  dashmin app add myapp postgres \"postgres://user:pass@host/db\"\n")
+			b.WriteString("  dashmin query add myapp users \"SELECT COUNT(*) FROM users\"\n")
+			b.WriteString("  dashmin show\n\n")
 		} else {
 			// Status info with color
 			if m.filterApp != "" {

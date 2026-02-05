@@ -1,17 +1,18 @@
 # dashmin
 
-**Minimal dashboard for monitoring your apps from the terminal**
+**Check your database metrics without leaving the terminal.**
 
-Monitor your databases with simple queries, no complex setup and no heavy interface.
+You're coding, you want to quickly check how many users signed up today, or if there are errors in prod. Instead of opening a database UI, connecting, writing a query... just run `dashmin show`.
 
 ![dashmin demo](demo.png)
 
-## Features
+## Why dashmin?
 
-- **Multi-database support** - PostgreSQL, MySQL, MongoDB
-- **Custom queries** - Track the metrics that matter to you
-- **AI-powered query generation** - Convert natural language to SQL (optional)
-- **Minimal setup** - Simple commands, no complex configuration
+- **Stay in your terminal** - No browser, no GUI, no context switching
+- **Instant setup** - 3 commands to your first dashboard
+- **Your queries** - Track exactly what matters to you
+- **Multi-database** - PostgreSQL, MySQL, MongoDB
+- **AI-powered** - Generate queries from natural language (optional)
 
 ## Installation
 
