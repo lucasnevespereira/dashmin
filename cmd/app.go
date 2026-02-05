@@ -1,12 +1,45 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/lucasnevespereira/dashmin/internal/config"
 	"github.com/lucasnevespereira/dashmin/internal/db"
 	"github.com/spf13/cobra"
 )
+
+var appYesFlag bool
+
+// isInteractive checks if stdin is a terminal
+func isInteractive() bool {
+	fileInfo, err := os.Stdin.Stat()
+	if err != nil {
+		return false
+	}
+	return (fileInfo.Mode() & os.ModeCharDevice) == os.ModeCharDevice
+}
+
+// confirmDestructive prompts for confirmation in interactive mode
+func confirmDestructive(message string) bool {
+	if !isInteractive() {
+		// Non-interactive mode: auto-accept with warning
+		fmt.Printf("⚠ %s (non-interactive mode: proceeding without confirmation)\n", message)
+		return true
+	}
+
+	// Interactive mode: prompt for confirmation
+	fmt.Printf("%s [y/N] ", message)
+	reader := bufio.NewReader(os.Stdin)
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		return false
+	}
+	response = strings.TrimSpace(strings.ToLower(response))
+	return response == "y" || response == "yes"
+}
 
 var appCmd = &cobra.Command{
 	Use:   "app",
@@ -98,7 +131,8 @@ var appRemoveCmd = &cobra.Command{
 	Long: `Remove an application from monitoring.
 
 Examples:
-  dashmin app remove myapp`,
+  dashmin app remove myapp
+  dashmin app remove myapp --yes`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		appName := args[0]
@@ -108,7 +142,8 @@ Examples:
 			return fmt.Errorf("loading config: %w", err)
 		}
 
-		if _, exists := cfg.Apps[appName]; !exists {
+		app, exists := cfg.Apps[appName]
+		if !exists {
 			fmt.Printf("Error: App '%s' not found.\n", appName)
 			if len(cfg.Apps) > 0 {
 				fmt.Printf("Available apps: ")
@@ -118,6 +153,21 @@ Examples:
 				fmt.Printf("\n")
 			}
 			return fmt.Errorf("app '%s' not found", appName)
+		}
+
+		// Confirmation prompt
+		if !appYesFlag {
+			queryCount := len(app.Queries)
+			var message string
+			if queryCount > 0 {
+				message = fmt.Sprintf("Remove app '%s' and %d quer%s?", appName, queryCount, map[bool]string{true: "y", false: "ies"}[queryCount == 1])
+			} else {
+				message = fmt.Sprintf("Remove app '%s'?", appName)
+			}
+			if !confirmDestructive(message) {
+				fmt.Println("Cancelled.")
+				return nil
+			}
 		}
 
 		delete(cfg.Apps, appName)
@@ -255,6 +305,8 @@ Examples:
 }
 
 func init() {
+	appRemoveCmd.Flags().BoolVarP(&appYesFlag, "yes", "y", false, "Skip confirmation prompt")
+
 	appCmd.AddCommand(appAddCmd)
 	appCmd.AddCommand(appRemoveCmd)
 	appCmd.AddCommand(appListCmd)
