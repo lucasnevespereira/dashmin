@@ -233,7 +233,7 @@ Examples:
 		}
 
 		fmt.Printf("Analyzing database schema...\n")
-		conn, err := connectToApp(app)
+		conn, err := db.ConnectByType(app.Type, app.Connection)
 		if err != nil {
 			fmt.Printf("Failed to connect to database: %v\n", err)
 			return
@@ -284,18 +284,6 @@ Examples:
 	},
 }
 
-func connectToApp(app config.App) (db.Connection, error) {
-	switch app.Type {
-	case "postgres":
-		return db.ConnectPostgres(app.Connection)
-	case "mysql":
-		return db.ConnectMySQL(app.Connection)
-	case "mongodb":
-		return db.ConnectMongoDB(app.Connection)
-	default:
-		return nil, fmt.Errorf("unsupported database type: %s", app.Type)
-	}
-}
 
 func executeGeneratedQuery(conn db.Connection, query string) {
 	fmt.Printf("\nExecuting query...\n")

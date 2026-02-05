@@ -24,18 +24,18 @@ func NewOpenAI(apiKey string) *OpenAI {
 }
 
 func (o *OpenAI) GenerateQuery(req QueryRequest) (*QueryResponse, error) {
-	return o.generateQuery(req)
-}
-
-func (o *OpenAI) generateQuery(req QueryRequest) (*QueryResponse, error) {
-	prompt := o.buildPrompt(req)
+	prompt := BuildPrompt(req)
 
 	payload := map[string]interface{}{
-		"model": "gpt-3.5-turbo",
+		"model": "gpt-4o-mini",
 		"messages": []map[string]string{
 			{
+				"role":    "system",
+				"content": prompt.System,
+			},
+			{
 				"role":    "user",
-				"content": prompt,
+				"content": prompt.User,
 			},
 		},
 		"max_tokens":  500,
@@ -47,15 +47,15 @@ func (o *OpenAI) generateQuery(req QueryRequest) (*QueryResponse, error) {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	req_http, err := http.NewRequest("POST", "https://api.openai.com/v1/chat/completions", bytes.NewBuffer(jsonData))
+	httpReq, err := http.NewRequest("POST", "https://api.openai.com/v1/chat/completions", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	req_http.Header.Set("Content-Type", "application/json")
-	req_http.Header.Set("Authorization", "Bearer "+o.apiKey)
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+o.apiKey)
 
-	resp, err := o.client.Do(req_http)
+	resp, err := o.client.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request: %w", err)
 	}
@@ -102,32 +102,4 @@ func (o *OpenAI) generateQuery(req QueryRequest) (*QueryResponse, error) {
 	sql = strings.TrimSpace(sql)
 
 	return &QueryResponse{SQL: sql}, nil
-}
-
-func (o *OpenAI) buildPrompt(req QueryRequest) string {
-	var prompt strings.Builder
-
-	prompt.WriteString(fmt.Sprintf("Generate a %s query for the following request.\n\n", strings.ToUpper(req.DatabaseType)))
-	prompt.WriteString(fmt.Sprintf("User request: %s\n\n", req.Prompt))
-
-	if req.Schema != "" {
-		prompt.WriteString("Database schema:\n")
-		prompt.WriteString(req.Schema)
-		prompt.WriteString("\n\n")
-	}
-
-	switch req.DatabaseType {
-	case "postgres", "mysql":
-		prompt.WriteString("Return only the SQL query without any explanation or formatting. ")
-		prompt.WriteString("Use standard SQL that works with " + req.DatabaseType + ". ")
-		prompt.WriteString("For dashmin monitoring, prefer COUNT(*), SUM(), AVG() and other aggregate functions over SELECT *. ")
-		prompt.WriteString("Generate queries that return single metrics suitable for dashboard display.")
-	case "mongodb":
-		prompt.WriteString("Return only the MongoDB query in the format: collection.count({filter}). ")
-		prompt.WriteString("Only count() operation is supported. Use JSON format, not JavaScript. ")
-		prompt.WriteString("For dates, use ISO date strings with $gte/$lt operators. ")
-		prompt.WriteString("Examples: users.count({\"status\": \"active\"}) or users.count({\"created_at\": {\"$gte\": \"2024-01-01\"}})")
-	}
-
-	return prompt.String()
 }

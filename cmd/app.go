@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/lucasnevespereira/dashmin/internal/config"
-	"github.com/lucasnevespereira/dashmin/ui"
+	"github.com/lucasnevespereira/dashmin/internal/db"
 	"github.com/spf13/cobra"
 )
 
@@ -195,7 +195,7 @@ Examples:
 		fmt.Printf("Testing connection to '%s' (%s)...\n", appName, app.Type)
 		fmt.Printf("Connection: %s\n\n", maskConnection(app.Connection))
 
-		conn, err := ui.ConnectDatabase(app)
+		conn, err := db.ConnectByType(app.Type, app.Connection)
 		if err != nil {
 			fmt.Printf("Connection failed: %v\n\n", err)
 

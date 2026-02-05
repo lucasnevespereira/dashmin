@@ -96,7 +96,7 @@ func (m *DashboardModel) refreshData() tea.Cmd {
 }
 
 func queryApp(appName string, app config.App) []QueryResult {
-	conn, err := ConnectDatabase(app)
+	conn, err := db.ConnectByType(app.Type, app.Connection)
 	if err != nil {
 		return []QueryResult{{
 			AppName:     appName,
@@ -122,19 +122,6 @@ func queryApp(appName string, app config.App) []QueryResult {
 		})
 	}
 	return results
-}
-
-func ConnectDatabase(app config.App) (db.Connection, error) {
-	switch app.Type {
-	case "postgres":
-		return db.ConnectPostgres(app.Connection)
-	case "mysql":
-		return db.ConnectMySQL(app.Connection)
-	case "mongodb":
-		return db.ConnectMongoDB(app.Connection)
-	default:
-		return nil, fmt.Errorf("unsupported database type: %s", app.Type)
-	}
 }
 
 

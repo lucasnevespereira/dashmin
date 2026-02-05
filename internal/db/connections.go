@@ -190,6 +190,20 @@ func ConnectMongoDB(connectionString string) (Connection, error) {
 	return &MongoConnection{client: client, dbName: dbName}, nil
 }
 
+// ConnectByType connects to a database given its type and connection string
+func ConnectByType(dbType, connectionString string) (Connection, error) {
+	switch dbType {
+	case "postgres":
+		return ConnectPostgres(connectionString)
+	case "mysql":
+		return ConnectMySQL(connectionString)
+	case "mongodb":
+		return ConnectMongoDB(connectionString)
+	default:
+		return nil, fmt.Errorf("unsupported database type: %s", dbType)
+	}
+}
+
 // convertDatesInFilter converts ISO date strings to time.Time objects for MongoDB queries
 func convertDatesInFilter(filter bson.M) bson.M {
 	for key, value := range filter {
