@@ -4,6 +4,8 @@
 
 Monitor your databases with simple queries, no complex setup and no heavy interface.
 
+![dashmin demo](demo.png)
+
 ## Features
 
 - **Multi-database support** - PostgreSQL, MySQL, MongoDB
@@ -21,69 +23,88 @@ go install github.com/lucasnevespereira/dashmin@latest
 
 ### 1. Add your first app
 ```bash
-dashmin add myapp postgres "postgres://readonly:password@localhost:5432/myapp_prod?sslmode=disable"
+dashmin app add myapp postgres "postgres://readonly:password@localhost:5432/myapp_prod?sslmode=disable"
 ```
 
 ### 2. Add metrics you want to track
 ```bash
-dashmin query myapp total_users "SELECT COUNT(*) FROM users"
-dashmin query myapp signups_today "SELECT COUNT(*) FROM users WHERE created_at >= CURRENT_DATE"
-dashmin query myapp revenue_today "SELECT SUM(amount) FROM orders WHERE created_at >= CURRENT_DATE"
+dashmin query add myapp total_users "SELECT COUNT(*) FROM users"
+dashmin query add myapp signups_today "SELECT COUNT(*) FROM users WHERE created_at >= CURRENT_DATE"
+dashmin query add myapp revenue_today "SELECT SUM(amount) FROM orders WHERE created_at >= CURRENT_DATE"
 ```
 
 ### 3. View your dashboard
 ```bash
-dashmin all          # See all apps
-dashmin see myapp    # See specific app
+dashmin show           # Show all apps
+dashmin show myapp     # Show specific app
 ```
 
 ## Commands
 
+### Apps
+
 ```bash
-dashmin add <app> <type> <connection>     # Add new app
-dashmin query <app> <label> <query>       # Add query to track
-dashmin all                               # View all apps
-dashmin see <app>                         # View specific app
-
-# Optional AI features
-dashmin prompt <app> "<natural language>" # Generate query with AI
-dashmin ai --provider openai --key sk-... # Setup AI
-
-# Other commands
-dashmin list                              # Show configuration
-dashmin test <app>                        # Test connection
+dashmin app add <name> <type> <connection>   # Add new app
+dashmin app list                              # List all apps
+dashmin app test <name>                       # Test connection
+dashmin app remove <name>                     # Remove app
 ```
 
-### Common Queries
+### Queries
+
+```bash
+dashmin query add <app> <label> <query>       # Add a query
+dashmin query list <app>                      # List queries for an app
+dashmin query remove <app> <label>            # Remove a query
+dashmin query generate <app> "<question>"     # Generate query with AI
+```
+
+### Dashboard
+
+```bash
+dashmin show                                  # Show all apps
+dashmin show <app>                            # Show specific app
+```
+
+### Configuration
+
+```bash
+dashmin config show                           # Show current config
+dashmin config path                           # Show config file path
+dashmin config ai --provider openai --key sk-...  # Setup AI
+dashmin config ai status                      # Check AI status
+dashmin config ai reset                       # Remove AI config
+```
+
+## Query Examples
 
 **User metrics:**
 ```bash
-dashmin query myapp total_users "SELECT COUNT(*) FROM users"
-dashmin query myapp active_users "SELECT COUNT(*) FROM users WHERE last_login > NOW() - INTERVAL '30 days'"
-dashmin query myapp signups_today "SELECT COUNT(*) FROM users WHERE created_at >= CURRENT_DATE"
+dashmin query add myapp total_users "SELECT COUNT(*) FROM users"
+dashmin query add myapp active_users "SELECT COUNT(*) FROM users WHERE last_login > NOW() - INTERVAL '30 days'"
+dashmin query add myapp signups_today "SELECT COUNT(*) FROM users WHERE created_at >= CURRENT_DATE"
 ```
 
 **Business metrics:**
 ```bash
-dashmin query myapp orders_today "SELECT COUNT(*) FROM orders WHERE created_at >= CURRENT_DATE"
-dashmin query myapp revenue_today "SELECT SUM(amount) FROM orders WHERE created_at >= CURRENT_DATE"
-dashmin query myapp avg_order_value "SELECT ROUND(AVG(amount), 2) FROM orders"
+dashmin query add myapp orders_today "SELECT COUNT(*) FROM orders WHERE created_at >= CURRENT_DATE"
+dashmin query add myapp revenue_today "SELECT SUM(amount) FROM orders WHERE created_at >= CURRENT_DATE"
+dashmin query add myapp avg_order_value "SELECT ROUND(AVG(amount), 2) FROM orders"
 ```
 
 **System health:**
 ```bash
-dashmin query myapp active_sessions "SELECT COUNT(*) FROM sessions WHERE expires_at > NOW()"
-dashmin query myapp errors_today "SELECT COUNT(*) FROM logs WHERE level = 'error' AND created_at >= CURRENT_DATE"
-dashmin query myapp database_size "SELECT pg_size_pretty(pg_database_size(current_database()))"
+dashmin query add myapp active_sessions "SELECT COUNT(*) FROM sessions WHERE expires_at > NOW()"
+dashmin query add myapp errors_today "SELECT COUNT(*) FROM logs WHERE level = 'error' AND created_at >= CURRENT_DATE"
+dashmin query add myapp database_size "SELECT pg_size_pretty(pg_database_size(current_database()))"
 ```
 
 **MongoDB examples:**
 ```bash
-dashmin query webapp total_users "users.count({})"
-dashmin query webapp active_users "users.count({\"status\": \"active\"})"
-dashmin query webapp events_today "events.count({\"date\": {\"$gte\": \"2024-01-01\"}})"
+dashmin query add webapp total_users "users.count({})"
+dashmin query add webapp active_users "users.count({\"status\": \"active\"})"
+dashmin query add webapp events_today "events.count({\"date\": {\"$gte\": \"2024-01-01\"}})"
 ```
-
 
 ## Configuration
 
@@ -91,10 +112,10 @@ Config is stored at `~/.config/dashmin/config.yaml`:
 
 ```yaml
 apps:
-  <app>:
-    name: <app>
+  myapp:
+    name: myapp
     type: postgres
-    connection: "postgres://readonly:password@localhost:5432/<database>?sslmode=disable"
+    connection: "postgres://readonly:password@localhost:5432/myapp?sslmode=disable"
     queries:
       total_users: "SELECT COUNT(*) FROM users"
       signups_today: "SELECT COUNT(*) FROM users WHERE created_at >= CURRENT_DATE"
@@ -110,6 +131,7 @@ apps:
 | MongoDB    | ✅     | `mongodb://user:pass@localhost:27017/database` |
 
 ### MongoDB Query Format
+
 MongoDB queries use the format: `collection.operation({filter})`
 
 Examples:
@@ -125,16 +147,16 @@ Generate queries from natural language. No SQL knowledge required!
 
 ```bash
 # OpenAI
-dashmin ai --provider openai --key sk-your-openai-key
+dashmin config ai --provider openai --key sk-your-openai-key
 
 # Anthropic Claude
-dashmin ai --provider anthropic --key your-anthropic-key
+dashmin config ai --provider anthropic --key your-anthropic-key
 
 # Check status
-dashmin ai status
+dashmin config ai status
 
 # Remove AI config
-dashmin ai reset
+dashmin config ai reset
 ```
 
 Get your API key:
@@ -144,35 +166,35 @@ Get your API key:
 ### Usage
 
 ```bash
-# Generate query
-dashmin prompt myapp "users who signed up today"
+# Generate query (preview)
+dashmin query generate myapp "users who signed up today"
 
 # Execute immediately
-dashmin prompt myapp "total revenue this month" --execute
+dashmin query generate myapp "total revenue this month" --execute
 
 # Save as reusable query
-dashmin prompt myapp "active premium users" --save
+dashmin query generate myapp "active premium users" --save
 
 # Both execute and save
-dashmin prompt blogapp "posts from last week" --save --execute
+dashmin query generate myapp "posts from last week" --save --execute
 ```
 
 ### Examples
 
 ```bash
 # User metrics
-dashmin prompt webapp "new users this month"
-dashmin prompt webapp "users with more than 5 orders"
-dashmin prompt webapp "users who haven't logged in for 30 days"
+dashmin query generate webapp "new users this month"
+dashmin query generate webapp "users with more than 5 orders"
+dashmin query generate webapp "users who haven't logged in for 30 days"
 
 # Business metrics
-dashmin prompt shop "revenue from premium customers this quarter"
-dashmin prompt shop "average order value"
-dashmin prompt shop "products with low inventory"
+dashmin query generate shop "revenue from premium customers this quarter"
+dashmin query generate shop "average order value"
+dashmin query generate shop "products with low inventory"
 
 # System health
-dashmin prompt myapp "database size"
-dashmin prompt myapp "error logs from today"
+dashmin query generate myapp "database size"
+dashmin query generate myapp "error logs from today"
 ```
 
 ### How it Works
@@ -182,7 +204,7 @@ dashmin prompt myapp "error logs from today"
 3. **Review & Execute** - Shows generated query before running
 4. **Save & Reuse** - Optionally save queries for monitoring
 
-### Keyboard Shortcuts
+## Keyboard Shortcuts
 
 - `r` - Refresh data
 - `q` - Quit
@@ -192,9 +214,8 @@ dashmin prompt myapp "error logs from today"
 If you're having connection issues:
 
 ```bash
-dashmin test <app-name>
+dashmin app test myapp
 ```
-
 
 ## Development
 
@@ -202,7 +223,7 @@ dashmin test <app-name>
 git clone https://github.com/lucasnevespereira/dashmin
 cd dashmin
 go mod tidy
-go run main.go all
+go run main.go show
 ```
 
 ## Contributing
