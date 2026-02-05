@@ -87,37 +87,41 @@ func (m *DashboardModel) refreshData() tea.Cmd {
 				continue
 			}
 
-			// Connect to database
-			conn, err := ConnectDatabase(app)
-			if err != nil {
-				results = append(results, QueryResult{
-					AppName:     appName,
-					QueryLabel:  "Connection",
-					Result:      &db.Result{Error: err},
-					LastUpdated: time.Now(),
-				})
-				continue
-			}
-			defer func() { _ = conn.Close() }()
-
-			// Execute queries
-			for label, query := range app.Queries {
-				result, err := conn.Query(query)
-				if err != nil {
-					result = &db.Result{Error: err}
-				}
-
-				results = append(results, QueryResult{
-					AppName:     appName,
-					QueryLabel:  label,
-					Result:      result,
-					LastUpdated: time.Now(),
-				})
-			}
+			appResults := queryApp(appName, app)
+			results = append(results, appResults...)
 		}
 
 		return results
 	}
+}
+
+func queryApp(appName string, app config.App) []QueryResult {
+	conn, err := ConnectDatabase(app)
+	if err != nil {
+		return []QueryResult{{
+			AppName:     appName,
+			QueryLabel:  "Connection",
+			Result:      &db.Result{Error: err},
+			LastUpdated: time.Now(),
+		}}
+	}
+	defer func() { _ = conn.Close() }()
+
+	var results []QueryResult
+	for label, query := range app.Queries {
+		result, err := conn.Query(query)
+		if err != nil {
+			result = &db.Result{Error: err}
+		}
+
+		results = append(results, QueryResult{
+			AppName:     appName,
+			QueryLabel:  label,
+			Result:      result,
+			LastUpdated: time.Now(),
+		})
+	}
+	return results
 }
 
 func ConnectDatabase(app config.App) (db.Connection, error) {
