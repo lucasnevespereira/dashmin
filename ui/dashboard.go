@@ -14,7 +14,257 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// Minimal color scheme
+// Theme interface for different UI styles
+type Theme interface {
+	Header() string
+	Status(apps, queries int, lastRefresh time.Time) string
+	TableHeader() string
+	TableRow(app, query, value, updated string, hasError bool, isTimeout bool) string
+	Help(keys []string) string
+	ErrorModalHeader() string
+	ErrorModalError(app, query, err string, isTimeout bool) string
+	ErrorModalFooter(count int) string
+	Loading(msg string) string
+	Error(msg string) string
+	EmptyState() string
+}
+
+// MinimalTheme - the original minimal theme
+type MinimalTheme struct{}
+
+func (t *MinimalTheme) Header() string {
+	return titleStyle.Render("dashmin")
+}
+
+func (t *MinimalTheme) Status(apps, queries int, lastRefresh time.Time) string {
+	appLabel := "app"
+	if apps != 1 {
+		appLabel = "apps"
+	}
+	queryLabel := "query"
+	if queries != 1 {
+		queryLabel = "queries"
+	}
+	return successStyle.Render(fmt.Sprintf("✓ %d %s, %d %s", apps, appLabel, queries, queryLabel)) +
+		mutedStyle.Render(fmt.Sprintf(" • Updated %s", lastRefresh.Format("15:04:05")))
+}
+
+func (t *MinimalTheme) TableHeader() string {
+	headers := fmt.Sprintf("%-15s %-20s %-15s %s", "APP", "QUERY", "VALUE", "UPDATED")
+	return mutedStyle.Render(headers) + "\n" + mutedStyle.Render(strings.Repeat("-", 70))
+}
+
+func (t *MinimalTheme) TableRow(app, query, value, updated string, hasError bool, isTimeout bool) string {
+	var status string
+	var statusColor lipgloss.Style
+	if hasError {
+		if isTimeout {
+			status = "⚠"
+			statusColor = timeoutStyle
+		} else {
+			status = "✗"
+			statusColor = errorStyle
+		}
+	} else {
+		status = "✓"
+		statusColor = successStyle
+	}
+	return fmt.Sprintf("%s %-14s %-20s %-15s %s\n",
+		statusColor.Render(status),
+		app,
+		query,
+		value,
+		mutedStyle.Render(updated))
+}
+
+func (t *MinimalTheme) Help(keys []string) string {
+	return mutedStyle.Render(strings.Join(keys, ", "))
+}
+
+func (t *MinimalTheme) ErrorModalHeader() string {
+	return titleStyle.Render("Error Details")
+}
+
+func (t *MinimalTheme) ErrorModalError(app, query, err string, isTimeout bool) string {
+	var statusColor lipgloss.Style
+	if isTimeout {
+		statusColor = timeoutStyle
+	} else {
+		statusColor = errorStyle
+	}
+	return fmt.Sprintf("%s %s.%s\n  %s\n\n",
+		statusColor.Render("✗"),
+		app,
+		query,
+		err)
+}
+
+func (t *MinimalTheme) ErrorModalFooter(count int) string {
+	return mutedStyle.Render(fmt.Sprintf("%d error(s) found • Press ? to close", count))
+}
+
+func (t *MinimalTheme) Loading(msg string) string {
+	if msg != "" {
+		return mutedStyle.Render(fmt.Sprintf("Querying %s...", msg))
+	}
+	return mutedStyle.Render("Loading...")
+}
+
+func (t *MinimalTheme) Error(msg string) string {
+	return errorStyle.Render(fmt.Sprintf("Error: %v", msg))
+}
+
+func (t *MinimalTheme) EmptyState() string {
+	return "No apps configured.\n\n" +
+		"Quick start:\n" +
+		"  dashmin app add myapp postgres \"postgres://user:pass@host/db\"\n" +
+		"  dashmin query add myapp users \"SELECT COUNT(*) FROM users\"\n" +
+		"  dashmin show\n\n"
+}
+
+// ModernTheme - the new modern dark theme
+type ModernTheme struct{}
+
+func (t *ModernTheme) Header() string {
+	// Empty header - status bar acts as the header
+	return ""
+}
+
+func (t *ModernTheme) Status(apps, queries int, lastRefresh time.Time) string {
+	// dashmin badge + app count in green + query count in green + updated time in gray
+	badge := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#ffffff")).
+		Background(lipgloss.Color("#6366f1")).
+		Padding(0, 1).
+		Bold(true).
+		Render("dashmin")
+
+	bullet := lipgloss.NewStyle().Foreground(lipgloss.Color("#4ade80")).Render("●")
+
+	appLabel := "app"
+	if apps != 1 {
+		appLabel = "apps"
+	}
+	queryLabel := "query"
+	if queries != 1 {
+		queryLabel = "queries"
+	}
+
+	appText := lipgloss.NewStyle().Foreground(lipgloss.Color("#4ade80")).Render(fmt.Sprintf("%d %s", apps, appLabel))
+	queryText := lipgloss.NewStyle().Foreground(lipgloss.Color("#4ade80")).Render(fmt.Sprintf("%d %s", queries, queryLabel))
+	updatedText := lipgloss.NewStyle().Foreground(lipgloss.Color("#6b7280")).Render(fmt.Sprintf("Updated %s", lastRefresh.Format("15:04:05")))
+
+	return fmt.Sprintf("%s  %s %s, %s %s  ●  %s", badge, bullet, appText, bullet, queryText, updatedText)
+}
+
+func (t *ModernTheme) TableHeader() string {
+	headerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#9ca3af")).Bold(true)
+
+	return fmt.Sprintf("%-12s %-25s %-15s %s",
+		headerStyle.Render("APP"),
+		headerStyle.Render("QUERY"),
+		headerStyle.Render("VALUE"),
+		headerStyle.Render("UPDATED"))
+}
+
+func (t *ModernTheme) TableRow(app, query, value, updated string, hasError bool, isTimeout bool) string {
+	// Match colors from reference image
+	appStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#4ade80"))     // Light green
+	queryStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#a78bfa"))   // Purple
+	valueStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#fbbf24"))   // Yellow/gold
+	updatedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#6b7280")) // Gray
+
+	var displayValue string
+	if hasError {
+		if isTimeout {
+			displayValue = lipgloss.NewStyle().Foreground(lipgloss.Color("#f97316")).Render("TIMEOUT")
+		} else {
+			displayValue = lipgloss.NewStyle().Foreground(lipgloss.Color("#ef4444")).Render("ERROR")
+		}
+	} else {
+		displayValue = valueStyle.Render(value)
+	}
+
+	return fmt.Sprintf("%-12s %-25s %-15s %s\n",
+		appStyle.Render(app),
+		queryStyle.Render(query),
+		displayValue,
+		updatedStyle.Render(updated))
+}
+
+func (t *ModernTheme) Help(keys []string) string {
+	var parts []string
+	for _, key := range keys {
+		// Parse key format like "r: refresh" or "?: errors"
+		keyChar := key[:1]
+		keyLabel := key[3:]
+
+		// Use darker background for key badge like in reference image
+		keyBadge := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#9ca3af")).
+			Background(lipgloss.Color("#1f2937")).
+			Padding(0, 1).
+			Render(keyChar)
+
+		keyText := lipgloss.NewStyle().Foreground(lipgloss.Color("#9ca3af")).Render(keyLabel)
+
+		parts = append(parts, fmt.Sprintf("%s %s", keyBadge, keyText))
+	}
+	return strings.Join(parts, "  ")
+}
+
+func (t *ModernTheme) ErrorModalHeader() string {
+	return lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#ffffff")).
+		Background(lipgloss.Color("#dc2626")).
+		Padding(0, 1).
+		Bold(true).
+		Render("Error Details")
+}
+
+func (t *ModernTheme) ErrorModalError(app, query, err string, isTimeout bool) string {
+	appStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#4ade80"))
+	queryStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#a78bfa"))
+	var errColor lipgloss.Style
+	if isTimeout {
+		errColor = lipgloss.NewStyle().Foreground(lipgloss.Color("#f97316"))
+	} else {
+		errColor = lipgloss.NewStyle().Foreground(lipgloss.Color("#ef4444"))
+	}
+
+	return fmt.Sprintf("%s.%s\n  %s\n\n",
+		appStyle.Render(app),
+		queryStyle.Render(query),
+		errColor.Render(err))
+}
+
+func (t *ModernTheme) ErrorModalFooter(count int) string {
+	return lipgloss.NewStyle().Foreground(lipgloss.Color("#6b7280")).Render(
+		fmt.Sprintf("%d error(s) found • Press ? to close", count))
+}
+
+func (t *ModernTheme) Loading(msg string) string {
+	if msg != "" {
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("#6b7280")).Render(fmt.Sprintf("Querying %s...", msg))
+	}
+	return lipgloss.NewStyle().Foreground(lipgloss.Color("#6b7280")).Render("Loading...")
+}
+
+func (t *ModernTheme) Error(msg string) string {
+	return lipgloss.NewStyle().Foreground(lipgloss.Color("#ef4444")).Render(fmt.Sprintf("Error: %v", msg))
+}
+
+func (t *ModernTheme) EmptyState() string {
+	return lipgloss.NewStyle().Foreground(lipgloss.Color("#9ca3af")).Render(
+		"No apps configured.\n\n"+
+			"Quick start:\n") +
+		lipgloss.NewStyle().Foreground(lipgloss.Color("#e5e7eb")).Render(
+			"  dashmin app add myapp postgres \"postgres://user:pass@host/db\"\n"+
+				"  dashmin query add myapp users \"SELECT COUNT(*) FROM users\"\n"+
+				"  dashmin show\n\n")
+}
+
+// Minimal color scheme (for backwards compatibility)
 var (
 	violet       = lipgloss.Color("#6366f1")
 	green        = lipgloss.Color("#10b981")
@@ -46,13 +296,22 @@ type DashboardModel struct {
 	filterApp    string
 	showErrors   bool
 	currentQuery string
+	theme        Theme
 }
 
 func NewDashboard(cfg *config.Config, filterApp string) *DashboardModel {
+	var theme Theme
+	if cfg.GetTheme() == "modern" {
+		theme = &ModernTheme{}
+	} else {
+		theme = &MinimalTheme{}
+	}
+
 	return &DashboardModel{
 		config:    cfg,
 		filterApp: filterApp,
 		loading:   true,
+		theme:     theme,
 	}
 }
 
@@ -75,6 +334,8 @@ func (m *DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if hasErrors(m.results) {
 				m.showErrors = !m.showErrors
 			}
+		case "t":
+			m.toggleTheme()
 		}
 	case []QueryResult:
 		m.results = msg
@@ -91,6 +352,18 @@ func (m *DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func (m *DashboardModel) toggleTheme() {
+	if m.config.GetTheme() == "modern" {
+		m.config.Theme = "minimal"
+		m.theme = &MinimalTheme{}
+	} else {
+		m.config.Theme = "modern"
+		m.theme = &ModernTheme{}
+	}
+	// Persist to config file
+	_ = m.config.Save()
 }
 
 func hasErrors(results []QueryResult) bool {
@@ -209,88 +482,70 @@ func (m *DashboardModel) View() string {
 
 	var b strings.Builder
 
-	// Title with color
-	if m.filterApp != "" {
-		b.WriteString(titleStyle.Render(fmt.Sprintf("dashmin - %s", m.filterApp)))
-	} else {
-		b.WriteString(titleStyle.Render("dashmin"))
+	// Header
+	header := m.theme.Header()
+	if header != "" {
+		b.WriteString(header)
+		b.WriteString("\n\n")
 	}
-	b.WriteString("\n\n")
 
-	// Status with color
+	// Status
 	if m.loading {
-		if m.currentQuery != "" {
-			b.WriteString(mutedStyle.Render(fmt.Sprintf("Querying %s...", m.currentQuery)))
-		} else {
-			b.WriteString(mutedStyle.Render("Loading..."))
-		}
+		b.WriteString(m.theme.Loading(m.currentQuery))
 		b.WriteString("\n\n")
 	} else if m.error != nil {
-		b.WriteString(errorStyle.Render(fmt.Sprintf("Error: %v", m.error)))
+		b.WriteString(m.theme.Error(m.error.Error()))
 		b.WriteString("\n\n")
 	} else {
 		if len(m.results) == 0 {
-			b.WriteString("No apps configured.\n\n")
-			b.WriteString("Quick start:\n")
-			b.WriteString("  dashmin app add myapp postgres \"postgres://user:pass@host/db\"\n")
-			b.WriteString("  dashmin query add myapp users \"SELECT COUNT(*) FROM users\"\n")
-			b.WriteString("  dashmin show\n\n")
+			b.WriteString(m.theme.EmptyState())
 		} else {
-			// Status info with color
+			// Status info
 			if m.filterApp != "" {
-				b.WriteString(successStyle.Render(fmt.Sprintf("✓ %d queries", len(m.results))))
+				b.WriteString(m.theme.Status(1, len(m.results), m.lastRefresh))
 			} else {
-				b.WriteString(successStyle.Render(fmt.Sprintf("✓ %d apps, %d queries", len(m.config.Apps), len(m.results))))
+				b.WriteString(m.theme.Status(len(m.config.Apps), len(m.results), m.lastRefresh))
 			}
-			b.WriteString(mutedStyle.Render(fmt.Sprintf(" • Updated %s", m.lastRefresh.Format("15:04:05"))))
 			b.WriteString("\n\n")
 
-			// Simple table with colored headers
-			headers := fmt.Sprintf("%-15s %-20s %-15s %s", "APP", "QUERY", "VALUE", "UPDATED")
-			b.WriteString(mutedStyle.Render(headers))
-			b.WriteString("\n")
-			b.WriteString(mutedStyle.Render(strings.Repeat("-", 70)))
+			// Table headers
+			b.WriteString(m.theme.TableHeader())
 			b.WriteString("\n")
 
+			// Table rows
 			for _, result := range m.results {
-				var value, status string
-				var statusColor lipgloss.Style
+				var value string
+				var hasError bool
+				var isTimeout bool
 
 				if result.Result.Error != nil {
 					value = "ERROR"
-					if isTimeoutError(result.Result.Error) {
-						status = "⚠"
-						statusColor = timeoutStyle
-					} else {
-						status = "✗"
-						statusColor = errorStyle
-					}
+					hasError = true
+					isTimeout = isTimeoutError(result.Result.Error)
 				} else if len(result.Result.Rows) > 0 && len(result.Result.Rows[0]) > 0 {
 					value = formatValue(result.Result.Rows[0][0])
-					status = "✓"
-					statusColor = successStyle
 				} else {
 					value = "No data"
-					status = "?"
-					statusColor = mutedStyle
 				}
 
-				b.WriteString(fmt.Sprintf("%s %-14s %-20s %-15s %s\n",
-					statusColor.Render(status),
+				b.WriteString(m.theme.TableRow(
 					result.AppName,
 					result.QueryLabel,
 					value,
-					mutedStyle.Render(result.LastUpdated.Format("15:04:05"))))
+					result.LastUpdated.Format("15:04:05"),
+					hasError,
+					isTimeout,
+				))
 			}
 			b.WriteString("\n")
 		}
 	}
 
-	// Help with muted color
+	// Help footer
 	if hasErrors(m.results) {
-		b.WriteString(mutedStyle.Render("r: refresh, q: quit, ?: errors"))
+		b.WriteString(m.theme.Help([]string{"r: refresh", "t: theme", "q: quit", "?: errors"}))
 	} else {
-		b.WriteString(mutedStyle.Render("r: refresh, q: quit"))
+		b.WriteString(m.theme.Help([]string{"r: refresh", "t: theme", "q: quit"}))
 	}
 
 	return b.String()
@@ -299,26 +554,23 @@ func (m *DashboardModel) View() string {
 func (m *DashboardModel) renderErrorModal() string {
 	var b strings.Builder
 
-	b.WriteString(titleStyle.Render("Error Details"))
+	b.WriteString(m.theme.ErrorModalHeader())
 	b.WriteString("\n\n")
 
 	var errorCount int
 	for _, result := range m.results {
 		if result.Result.Error != nil {
 			errorCount++
-			var statusColor lipgloss.Style
-			if isTimeoutError(result.Result.Error) {
-				statusColor = timeoutStyle
-			} else {
-				statusColor = errorStyle
-			}
-
-			b.WriteString(fmt.Sprintf("%s %s.%s\n", statusColor.Render("✗"), result.AppName, result.QueryLabel))
-			b.WriteString(fmt.Sprintf("  %s\n\n", result.Result.Error))
+			b.WriteString(m.theme.ErrorModalError(
+				result.AppName,
+				result.QueryLabel,
+				result.Result.Error.Error(),
+				isTimeoutError(result.Result.Error),
+			))
 		}
 	}
 
-	b.WriteString(mutedStyle.Render(fmt.Sprintf("%d error(s) found • Press ? to close", errorCount)))
+	b.WriteString(m.theme.ErrorModalFooter(errorCount))
 
 	return modalStyle.Render(b.String())
 }
