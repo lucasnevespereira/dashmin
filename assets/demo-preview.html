@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>dashmin - Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #1a1a2e;
+            padding: 40px;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+        }
+
+        .terminal {
+            width: 800px;
+            background: #0f0f1a;
+            border-radius: 12px;
+            box-shadow: 
+                0 25px 50px -12px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(255, 255, 255, 0.05);
+            overflow: hidden;
+        }
+
+        .terminal-header {
+            background: linear-gradient(180deg, #1e1e2e 0%, #16162a 100%);
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .traffic-lights {
+            display: flex;
+            gap: 8px;
+            margin-right: 12px;
+        }
+
+        .traffic-light {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.2);
+        }
+
+        .traffic-light.red { background: #ff5f57; }
+        .traffic-light.yellow { background: #febc2e; }
+        .traffic-light.green { background: #28c840; }
+
+        .terminal-title {
+            color: #6b6b8a;
+            font-size: 13px;
+            flex: 1;
+            text-align: center;
+            margin-right: 52px;
+            font-weight: 500;
+        }
+
+        .terminal-body {
+            padding: 20px 24px;
+        }
+
+        .header-line {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .brand {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 14px;
+            letter-spacing: -0.5px;
+        }
+
+        .stats {
+            color: #10b981;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stats::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: #10b981;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .separator {
+            color: #4b5563;
+            font-size: 13px;
+        }
+
+        .timestamp {
+            color: #6b7280;
+            font-size: 13px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        thead th {
+            color: #9ca3af;
+            font-weight: 500;
+            text-align: left;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(75, 85, 99, 0.3);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid rgba(75, 85, 99, 0.1);
+        }
+
+        tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        tbody td {
+            padding: 10px 0;
+            color: #e5e7eb;
+        }
+
+        tbody td:first-child {
+            color: #10b981;
+            font-weight: 500;
+        }
+
+        tbody td:nth-child(2) {
+            color: #a78bfa;
+        }
+
+        tbody td:nth-child(3) {
+            color: #fbbf24;
+            font-weight: 500;
+        }
+
+        tbody td:nth-child(4) {
+            color: #6b7280;
+        }
+
+        .footer {
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(75, 85, 99, 0.2);
+            display: flex;
+            gap: 24px;
+            font-size: 13px;
+        }
+
+        .key-hint {
+            color: #6b7280;
+        }
+
+        .key-hint span {
+            color: #9ca3af;
+            background: rgba(75, 85, 99, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-right: 6px;
+        }
+
+        .glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 600px;
+            height: 400px;
+            background: radial-gradient(ellipse, rgba(99, 102, 241, 0.08) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body>
+    <div class="glow"></div>
+    <div class="terminal">
+        <div class="terminal-header">
+            <div class="traffic-lights">
+                <div class="traffic-light red"></div>
+                <div class="traffic-light yellow"></div>
+                <div class="traffic-light green"></div>
+            </div>
+            <div class="terminal-title">dashmin show</div>
+        </div>
+        <div class="terminal-body">
+            <div class="header-line">
+                <span class="brand">dashmin</span>
+                <span class="stats">1 apps, 8 queries</span>
+                <span class="separator">•</span>
+                <span class="timestamp">Updated 22:43:59</span>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>App</th>
+                        <th>Query</th>
+                        <th>Value</th>
+                        <th>Updated</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>production</td>
+                        <td>active_sessions</td>
+                        <td>1,456</td>
+                        <td>22:43:59</td>
+                    </tr>
+                    <tr>
+                        <td>production</td>
+                        <td>active_users</td>
+                        <td>11,234</td>
+                        <td>22:43:59</td>
+                    </tr>
+                    <tr>
+                        <td>production</td>
+                        <td>avg_order_value</td>
+                        <td>$104.96</td>
+                        <td>22:43:59</td>
+                    </tr>
+                    <tr>
+                        <td>production</td>
+                        <td>orders_today</td>
+                        <td>89</td>
+                        <td>22:43:59</td>
+                    </tr>
+                    <tr>
+                        <td>production</td>
+                        <td>response_time_ms</td>
+                        <td>45.00</td>
+                        <td>22:43:59</td>
+                    </tr>
+                    <tr>
+                        <td>production</td>
+                        <td>revenue_today</td>
+                        <td>$9,341.55</td>
+                        <td>22:43:59</td>
+                    </tr>
+                    <tr>
+                        <td>production</td>
+                        <td>signups_today</td>
+                        <td>1</td>
+                        <td>22:43:59</td>
+                    </tr>
+                    <tr>
+                        <td>production</td>
+                        <td>total_users</td>
+                        <td>12,847</td>
+                        <td>22:43:59</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="footer">
+                <span class="key-hint"><span>r</span>refresh</span>
+                <span class="key-hint"><span>q</span>quit</span>
+                <span class="key-hint"><span>?</span>help</span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -97,11 +97,6 @@ func (c *MongoConnection) Query(query string) (*Result, error) {
 	collection := parts[0]
 	operation := parts[1]
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	coll := c.client.Database(c.dbName).Collection(collection)
-
 	if strings.HasPrefix(operation, "count(") {
 		// Extract filter from count({filter})
 		filterStr := strings.TrimSuffix(strings.TrimPrefix(operation, "count("), ")")
@@ -109,14 +104,20 @@ func (c *MongoConnection) Query(query string) (*Result, error) {
 			filterStr = "{}"
 		}
 
+		// A filter that doesn't parse must fail, falling back to {}
+		// would count the whole collection and show a wrong number
 		var filter bson.M
 		if err := json.Unmarshal([]byte(filterStr), &filter); err != nil {
-			filter = bson.M{}
+			return &Result{Error: fmt.Errorf("invalid filter %s, it must be JSON: %w", filterStr, err)}, nil
 		}
 
 		// Convert date strings to proper time.Time objects
 		filter = convertDatesInFilter(filter)
 
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		coll := c.client.Database(c.dbName).Collection(collection)
 		count, err := coll.CountDocuments(ctx, filter)
 		if err != nil {
 			return &Result{Error: err}, nil
@@ -139,33 +140,34 @@ func (c *MongoConnection) Close() error {
 	return c.client.Disconnect(ctx)
 }
 
-// ConnectPostgres connects to PostgreSQL using a connection string
-func ConnectPostgres(connectionString string) (Connection, error) {
-	// pgx driver supports both postgres:// URLs and key=value format
-	db, err := sql.Open("pgx", connectionString)
+// openSQL opens and pings a database. The ping gives up after 10s
+// so an unreachable host can't hang the dashboard.
+func openSQL(driver, name, connectionString string) (Connection, error) {
+	db, err := sql.Open(driver, connectionString)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to postgres: %w", err)
+		return nil, fmt.Errorf("failed to connect to %s: %w", name, err)
 	}
 
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping postgres: %w", err)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := db.PingContext(ctx); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("failed to ping %s: %w", name, err)
 	}
 
 	return &SQLConnection{db: db}, nil
 }
 
+// ConnectPostgres connects to PostgreSQL using a connection string
+func ConnectPostgres(connectionString string) (Connection, error) {
+	// pgx driver supports both postgres:// URLs and key=value format
+	return openSQL("pgx", "postgres", connectionString)
+}
+
 // ConnectMySQL connects to MySQL using a connection string
 func ConnectMySQL(connectionString string) (Connection, error) {
-	db, err := sql.Open("mysql", connectionString)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to mysql: %w", err)
-	}
-
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping mysql: %w", err)
-	}
-
-	return &SQLConnection{db: db}, nil
+	return openSQL("mysql", "mysql", connectionString)
 }
 
 // ConnectMongoDB connects to MongoDB using a connection string
@@ -201,18 +203,7 @@ func ConnectMongoDB(connectionString string) (Connection, error) {
 // Connection string format: sqlite:///path/to/database.db
 func ConnectSQLite(connectionString string) (Connection, error) {
 	// Remove the sqlite:// prefix if present
-	dbPath := strings.TrimPrefix(connectionString, "sqlite://")
-
-	db, err := sql.Open("sqlite3", dbPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to sqlite: %w", err)
-	}
-
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping sqlite: %w", err)
-	}
-
-	return &SQLConnection{db: db}, nil
+	return openSQL("sqlite3", "sqlite", strings.TrimPrefix(connectionString, "sqlite://"))
 }
 
 // ConnectByType connects to a database given its type and connection string
