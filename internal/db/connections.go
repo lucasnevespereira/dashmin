@@ -97,11 +97,6 @@ func (c *MongoConnection) Query(query string) (*Result, error) {
 	collection := parts[0]
 	operation := parts[1]
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	coll := c.client.Database(c.dbName).Collection(collection)
-
 	if strings.HasPrefix(operation, "count(") {
 		// Extract filter from count({filter})
 		filterStr := strings.TrimSuffix(strings.TrimPrefix(operation, "count("), ")")
@@ -109,14 +104,20 @@ func (c *MongoConnection) Query(query string) (*Result, error) {
 			filterStr = "{}"
 		}
 
+		// A filter that doesn't parse must fail, falling back to {}
+		// would count the whole collection and show a wrong number
 		var filter bson.M
 		if err := json.Unmarshal([]byte(filterStr), &filter); err != nil {
-			filter = bson.M{}
+			return &Result{Error: fmt.Errorf("invalid filter %s, it must be JSON: %w", filterStr, err)}, nil
 		}
 
 		// Convert date strings to proper time.Time objects
 		filter = convertDatesInFilter(filter)
 
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		coll := c.client.Database(c.dbName).Collection(collection)
 		count, err := coll.CountDocuments(ctx, filter)
 		if err != nil {
 			return &Result{Error: err}, nil
