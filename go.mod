@@ -10,7 +10,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.33
 	github.com/spf13/cobra v1.10.1
 	go.mongodb.org/mongo-driver v1.17.4
-	golang.org/x/sync v0.19.0
+	golang.org/x/text v0.24.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -46,6 +46,6 @@ require (
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	golang.org/x/crypto v0.37.0 // indirect
+	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
-	golang.org/x/text v0.24.0 // indirect
 )
